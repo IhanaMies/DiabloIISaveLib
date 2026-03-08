@@ -3,6 +3,8 @@ using System.Runtime.CompilerServices;
 
 namespace DiabloIISaveLib.Huffman;
 
+//Credits to dschu012/D2SLib and it's fork tomrus88/D2SLib
+
 //hardcoded....
 public class HuffmanTree
 {
