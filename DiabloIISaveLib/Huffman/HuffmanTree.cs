@@ -1,4 +1,4 @@
-﻿using D2SLib.IO;
+﻿using DiabloIISaveLib.IO;
 using System.Runtime.CompilerServices;
 
 namespace DiabloIISaveLib.Huffman;
@@ -107,6 +107,13 @@ public class HuffmanTree
             _encodingTable[symbol] = (bits, length);
         }
     }
+
+    public static HuffmanTree BuildNew()
+    {
+        HuffmanTree tree = new();
+        tree.Build();
+        return tree;
+	}
 
     /// <summary>
     /// Fast encoding - returns bits packed into uint and the bit count

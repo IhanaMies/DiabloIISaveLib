@@ -1,0 +1,102 @@
+﻿using DiabloIISaveLib.IO;
+using System.Text;
+using static DiabloIISaveLib.Versions.v99.Item_v99;
+
+namespace DiabloIISaveLib.Versions.v99;
+
+// 4+1+1+2+4
+public class PreviewItem_v99
+{
+    public uint Code { get; set; }
+    public byte Transform { get; set; }
+    public ItemQuality Quality { get; set; }
+    public ushort FileIndex { get; set; }
+    public ItemFlags Flags { get; set; }
+    public string CodeString => Encoding.ASCII.GetString(BitConverter.GetBytes(Code)).TrimEnd(['\0', ' ']);
+
+    public static PreviewItem_v99 Read(IBitReader reader)
+    {
+        var previewItem = new PreviewItem_v99
+        {
+            Code = reader.ReadUInt32(),
+            Transform = reader.ReadByte(),
+            Quality = (ItemQuality)reader.ReadByte(),
+            FileIndex = reader.ReadUInt16(),
+            Flags = (ItemFlags)reader.ReadUInt32(),
+        };
+
+        return previewItem;
+    }
+
+    public void Write(IBitWriter writer)
+    {
+        writer.WriteUInt32(Code);
+        writer.WriteByte(Transform);
+        writer.WriteByte((byte)Quality);
+        writer.WriteUInt16(FileIndex);
+        writer.WriteUInt32((uint)Flags);
+    }
+}
+
+// 8+8+4+4+4+4*12+64
+public class PreviewData_v99
+{
+    public ulong ExpansionSaveTime { get; set; }
+    public ulong ClassicSaveTime { get; set; }
+    public uint GuildEmblemColor { get; set; } // One byte but padded to 4
+    public uint ExpansionExperience { get; set; }
+    public uint ClassicExperience { get; set; }
+    public byte GameVersion { get; set; }
+    public byte Unk1 { get; set; }
+    public byte Unk2 { get; set; }
+    public required PreviewItem_v99 LeftHand { get; set; }
+    public required PreviewItem_v99 RightHand { get; set; }
+    public required PreviewItem_v99 Torso { get; set; }
+	public required PreviewItem_v99 Head { get; set; }
+	public required string Name { get; set; }
+    public uint Unk3 { get; set; }
+
+    public static PreviewData_v99 Read(IBitReader reader, int version)
+    {
+        var previewData = new PreviewData_v99
+        {
+            ExpansionSaveTime = reader.ReadUInt64(),
+            ClassicSaveTime = reader.ReadUInt64(),
+            GuildEmblemColor = reader.ReadUInt32(),
+            ExpansionExperience = reader.ReadUInt32(),
+            ClassicExperience = reader.ReadUInt32(),
+            GameVersion = version > 100 ? reader.ReadByte() : (byte)0,
+            Unk1 = version > 100 ? reader.ReadByte() : (byte)0,
+            Unk2 = version > 100 ? reader.ReadByte() : (byte)0,
+            LeftHand = PreviewItem_v99.Read(reader),
+            RightHand = PreviewItem_v99.Read(reader),
+            Torso = PreviewItem_v99.Read(reader),
+            Head = PreviewItem_v99.Read(reader),
+            Name = reader.ReadString(64),
+            Unk3 = reader.ReadUInt32(),
+        };
+
+        return previewData;
+    }
+
+    public void Write(IBitWriter writer, int version)
+    {
+        writer.WriteUInt64(ExpansionSaveTime);
+        writer.WriteUInt64(ClassicSaveTime);
+        writer.WriteUInt32(GuildEmblemColor);
+        writer.WriteUInt32(ExpansionExperience);
+        writer.WriteUInt32(ClassicExperience);
+        if (version > 100)
+        {
+            writer.WriteUInt32(GameVersion);
+            writer.WriteUInt32(Unk1);
+            writer.WriteUInt32(Unk2);
+        }
+        LeftHand.Write(writer);
+        RightHand.Write(writer);
+        Torso.Write(writer);
+        Head.Write(writer);
+        writer.WriteString(Name, 64);
+        writer.WriteUInt32(Unk3);
+    }
+}

@@ -2,22 +2,117 @@
 using System.Collections.Generic;
 using System.Reflection;
 using System.Text;
+using DiabloIISaveLib.Huffman;
+using Serilog;
 using static DiabloIISaveLib.Helpers;
 
 namespace DiabloIISaveLib.Constants.v99
 {
 	public static class Data
 	{
-		public static Dictionary<string, ItemStatCost> itemStatCosts = new();
-		public static Dictionary<string, ItemType> itemTypes = new();
-		public static Dictionary<string, Armor> armors = new();
-		public static Dictionary<string, Misc> miscs = new();
-		public static Dictionary<string, Weapon> weapons = new();
-		public static Dictionary<string, Unique> uniques = new();
-		public static Dictionary<string, SetItem> setItems = new();
+		public enum EDataLoadingStatus
+		{
+			NotLoaded,
+			Loading,
+			Loaded
+		}
+
+		public static EDataLoadingStatus dataLoadingStatus { get; private set; } = EDataLoadingStatus.NotLoaded;
+
+		public static HuffmanTree? item_code_tree
+		{
+			get => field ??= HuffmanTree.BuildNew();
+			set => field = value;
+		}
+		public static Dictionary<string, ItemStatCost> item_stat_costs
+		{
+			get
+			{
+				if (dataLoadingStatus == EDataLoadingStatus.NotLoaded) ThrowInvalidOperationException("Data was not loaded");
+				return field;
+			}
+			set;
+		} = new();
+		public static Dictionary<string, ItemType> itemTypes
+		{
+			get
+			{
+				if (dataLoadingStatus == EDataLoadingStatus.NotLoaded) ThrowInvalidOperationException("Data was not loaded");
+				return field;
+			}
+			set;
+		} = new();
+		public static Dictionary<string, Armor> armors
+		{
+			get
+			{
+				if (dataLoadingStatus == EDataLoadingStatus.NotLoaded) ThrowInvalidOperationException("Data was not loaded");
+				return field;
+			}
+			set;
+		} = new();
+		public static Dictionary<string, Misc> miscs
+		{
+			get
+			{
+				if (dataLoadingStatus == EDataLoadingStatus.NotLoaded) ThrowInvalidOperationException("Data was not loaded");
+				return field;
+			}
+			set;
+		} = new();
+		public static Dictionary<string, Weapon> weapons
+		{
+			get
+			{
+				if (dataLoadingStatus == EDataLoadingStatus.NotLoaded) ThrowInvalidOperationException("Data was not loaded");
+				return field;
+			}
+			set;
+		} = new();
+		public static List<Unique> uniques
+		{
+			get
+			{
+				if (dataLoadingStatus == EDataLoadingStatus.NotLoaded) ThrowInvalidOperationException("Data was not loaded");
+				return field;
+			}
+			set;
+		} = new();
+		public static Dictionary<string, SetItem> setItems
+		{
+			get
+			{
+				if (dataLoadingStatus == EDataLoadingStatus.NotLoaded) ThrowInvalidOperationException("Data was not loaded");
+				return field;
+			}
+			set;
+		} = new();
+
+		static Data()
+		{
+			Log.Logger = new LoggerConfiguration()
+				.MinimumLevel.Verbose()
+				.WriteTo.Debug(outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {SourceContext} - {Message:lj}{NewLine}{Exception}")
+				.WriteTo.File("log.txt", restrictedToMinimumLevel: Serilog.Events.LogEventLevel.Information)
+				.CreateLogger();
+		}
 
 		public static void LoadData(string root)
 		{
+			if (dataLoadingStatus != EDataLoadingStatus.NotLoaded)
+			{
+				return;
+			}
+
+			if (!Directory.Exists(root))
+			{
+				DirectoryNotFoundException ex = new($"The provided root directory '{root}' does not exist.");
+				Log.Error(ex, $"The provided root directory '{root}' does not exist.");
+				throw ex;
+			}
+
+			dataLoadingStatus = EDataLoadingStatus.Loading;
+
 			ReadItemStatCosts(root);
 			ReadItemTypes(root);
 			ReadArmors(root);
@@ -25,20 +120,67 @@ namespace DiabloIISaveLib.Constants.v99
 			ReadWeapons(root);
 			ReadUniqueItems(root);
 			ReadSetItems(root);
+
+			dataLoadingStatus = EDataLoadingStatus.Loaded;
+			Log.Information("Data loaded");
+		}
+
+		public static bool IsStackable(string code)
+		{
+			if (armors.TryGetValue(code, out Armor? armor))
+			{
+				return armor!.stackable ?? false;
+			}
+			if (weapons.TryGetValue(code, out Weapon? weapon))
+			{
+				return weapon!.stackable ?? false;
+			}
+			if (miscs.TryGetValue(code, out Misc? misc))
+			{
+				return misc!.stackable ?? false;
+			}
+			return false;
+		}
+
+		public static string? GetItemName(string code)
+		{
+			if (armors.TryGetValue(code, out Armor? armor))
+			{
+				return armor?.name;
+			}
+			if (weapons.TryGetValue(code, out Weapon? weapon))
+			{
+				return weapon?.name;
+			}
+			if (miscs.TryGetValue(code, out Misc? misc))
+			{
+				return misc?.name;
+			}
+
+			return null;
 		}
 
 		public static void ReadItemStatCosts(string root)
 		{
-			string[] lines = File.ReadAllLines(root + "\\data\\global\\excel\\itemstatcost.txt");
+			string[] lines = File.ReadAllLines(root + "\\data\\global\\v99\\excel\\itemstatcost.txt");
+			int headerCount = lines[0].Split('\t').Length;
+
+			if (headerCount != 52)
+			{
+				string msg = $"Item stat cost data table header count was incorrect ({headerCount}). Expected: 52";
+				InvalidOperationException ex = new(msg);
+				Log.Error(ex, msg);
+				throw ex;
+			}
 
 			for (int i = 1; i < lines.Length; i++)
 			{
 				string[] values = lines[i].Split('\t');
 
-				itemStatCosts.Add(values[0], new()
+				item_stat_costs.Add(values[0], new()
 				{
 					stat = values[0],
-					id = ParseInt(values[1]),
+					id = ParseUshort(values[1]),
 					send_other = ParseBool(values[2]),
 					signed = ParseBool(values[3]),
 					send_bits = ParseInt(values[4]),
@@ -90,11 +232,22 @@ namespace DiabloIISaveLib.Constants.v99
 					adv_display = ParseInt(values[50])
 				});
 			}
+
+			Log.Information("Loaded {Count} item stat costs", item_stat_costs.Count);
 		}
 
 		public static void ReadItemTypes(string root)
 		{
-			string[] lines = File.ReadAllLines(root + "\\data\\global\\excel\\itemtypes.txt");
+			string[] lines = File.ReadAllLines(root + "\\data\\global\\v99\\excel\\itemtypes.txt");
+			int headerCount = lines[0].Split('\t').Length;
+
+			if (headerCount != 36)
+			{
+				string msg = $"Weapon data table header count was incorrect ({headerCount}). Expected: 36";
+				InvalidOperationException ex = new(msg);
+				Log.Error(ex, msg);
+				throw ex;
+			}
 
 			for (int i = 1; i < lines.Length; i++)
 			{
@@ -102,692 +255,762 @@ namespace DiabloIISaveLib.Constants.v99
 
 				if (string.IsNullOrWhiteSpace(values[1])) continue;
 
-				itemTypes.Add(values[0], new()
-				{
-					Type = values[0],
-					Code = values[1],
-					Equiv1 = values[2],
-					Equiv2 = values[3],
-					Repair = ParseBool(values[4]),
-					Body = ParseBool(values[5]),
-					BodyLoc1 = values[6],
-					BodyLoc2 = values[7],
-					Shoots = values[8],
-					Quiver = values[9],
-					Throwable = ParseBool(values[10]),
-					Reload = ParseBool(values[11]),
-					ReEquip = ParseBool(values[12]),
-					AutoStack = ParseBool(values[13]),
-					Magic = ParseBool(values[14]),
-					Rare = ParseBool(values[15]),
-					Normal = ParseBool(values[16]),
-					Beltable = ParseBool(values[17]),
-					MaxSockets1 = ParseInt(values[18]),
-					MaxSocketsLevelThreshold1 = ParseInt(values[19]),
-					MaxSockets2 = ParseInt(values[20]),
-					MaxSocketsLevelThreshold2 = ParseInt(values[21]),
-					MaxSockets3 = ParseInt(values[22]),
-					TreasureClass = ParseBool(values[23]),
-					Rarity = ParseInt(values[24]),
-					StaffMods = values[25],
-					Class = values[26],
-					VarInvGfx = ParseInt(values[27]),
-					InvGfx1 = values[28],
-					InvGfx2 = values[29],
-					InvGfx3 = values[30],
-					InvGfx4 = values[31],
-					InvGfx5 = values[32],
-					InvGfx6 = values[33],
-					StorePage = values[34]
-				});
+				var itemType = new ItemType();
+
+				itemType.Type = values[0];
+				itemType.Code = values[1];
+				itemType.Equiv1 = values[2];
+				itemType.Equiv2 = values[3];
+				itemType.Repair = ParseBool(values[4]);
+				itemType.Body = ParseBool(values[5]);
+				itemType.BodyLoc1 = values[6];
+				itemType.BodyLoc2 = values[7];
+				itemType.Shoots = values[8];
+				itemType.Quiver = values[9];
+				itemType.Throwable = ParseBool(values[10]);
+				itemType.Reload = ParseBool(values[11]);
+				itemType.ReEquip = ParseBool(values[12]);
+				itemType.AutoStack = ParseBool(values[13]);
+				itemType.Magic = ParseBool(values[14]);
+				itemType.Rare = ParseBool(values[15]);
+				itemType.Normal = ParseBool(values[16]);
+				itemType.Beltable = ParseBool(values[17]);
+				itemType.MaxSockets1 = ParseInt(values[18]);
+				itemType.MaxSocketsLevelThreshold1 = ParseInt(values[19]);
+				itemType.MaxSockets2 = ParseInt(values[20]);
+				itemType.MaxSocketsLevelThreshold2 = ParseInt(values[21]);
+				itemType.MaxSockets3 = ParseInt(values[22]);
+				itemType.TreasureClass = ParseBool(values[23]);
+				itemType.Rarity = ParseInt(values[24]);
+				itemType.StaffMods = values[25];
+				itemType.Class = values[26];
+				itemType.VarInvGfx = ParseInt(values[27]);
+				itemType.InvGfx1 = values[28];
+				itemType.InvGfx2 = values[29];
+				itemType.InvGfx3 = values[30];
+				itemType.InvGfx4 = values[31];
+				itemType.InvGfx5 = values[32];
+				itemType.InvGfx6 = values[33];
+				itemType.StorePage = values[34];
+
+				itemTypes.Add(values[1], itemType);
 			}
+
+			Log.Information("Loaded {Count} item types", itemTypes.Count);
 		}
 
 		// Implementation for reading armors.txt
 		public static void ReadArmors(string root)
 		{
-			string[] lines = File.ReadAllLines(root + "\\data\\global\\excel\\armors.txt");
+			string[] lines = File.ReadAllLines(root + "\\data\\global\\v99\\excel\\armor.txt");
+			int headerCount = lines[0].Split('\t').Length;
+
+			if (headerCount != 166)
+			{
+				string msg = $"Armor data table header count was incorrect ({headerCount}). Expected: 166";
+				InvalidOperationException ex = new(msg);
+				Log.Error(ex, msg);
+				throw ex;
+			}
 
 			for (int i = 1; i < lines.Length; i++)
 			{
 				var values = lines[i].Split('\t');
-				var key = values[0];
+				var key = values[18];
 				if (string.IsNullOrWhiteSpace(key)) continue;
 
-				armors.Add(key, new Armor
-				{
-					name = key,
-					version = ParseInt(values[1]),
-					compactsave = ParseBool(values[2]),
-					rarity = ParseInt(values[3]),
-					spawnable = ParseBool(values[4]),
-					minac = ParseInt(values[5]),
-					maxac = ParseInt(values[6]),
-					speed = ParseInt(values[7]),
-					reqstr = ParseInt(values[8]),
-					reqdex = ParseInt(values[9]),
-					block = ParseInt(values[10]),
-					durability = ParseInt(values[11]),
-					nodurability = ParseInt(values[12]),
-					level = ParseInt(values[13]),
-					ShowLevel = ParseInt(values[14]),
-					levelreq = ParseInt(values[15]),
-					cost = ParseInt(values[16]),
-					gamble_cost = ParseInt(values[17]),
-					code = values[18],
-					namestr = values[19],
-					magic_lvl = ParseInt(values[20]),
-					auto_prefix = ParseInt(values[21]),
-					alternategfx = values[22],
-					normcode = values[23],
-					ubercode = values[24],
-					ultracode = values[25],
-					component = ParseInt(values[26]),
-					invwidth = ParseInt(values[27]),
-					invheight = ParseInt(values[28]),
-					hasinv = ParseInt(values[29]),
-					gemsockets = ParseInt(values[30]),
-					gemapplytype = ParseInt(values[31]),
-					flippyfile = values[32],
-					invfile = values[33],
-					uniqueinvfile = values[34],
-					setinvfile = values[35],
-					rArm = ParseInt(values[36]),
-					lArm = ParseInt(values[37]),
-					Torso = ParseInt(values[38]),
-					Legs = ParseInt(values[39]),
-					rSPad = ParseInt(values[40]),
-					lSPad = ParseInt(values[41]),
-					useable = ParseBool(values[42]),
-					stackable = ParseBool(values[43]),
-					minstack = ParseInt(values[44]),
-					maxstack = ParseInt(values[45]),
-					spawnstack = ParseInt(values[46]),
-					Transmogrify = ParseBool(values[47]),
-					TMogType = values[48],
-					TMogMin = ParseInt(values[49]),
-					TMogMax = ParseInt(values[50]),
-					type = values[51],
-					type2 = values[52],
-					dropsound = values[53],
-					dropsfxframe = ParseInt(values[54]),
-					usesound = values[55],
-					unique = ParseBool(values[56]),
-					transparent = ParseBool(values[57]),
-					transtbl = ParseInt(values[58]),
-					quivered = ParseBool(values[59]),
-					lightradius = ParseInt(values[60]),
-					belt = ParseInt(values[61]),
-					quest = values[62],
-					questdiffcheck = values[63],
-					missiletype = ParseBool(values[64]),
-					durwarning = ParseInt(values[65]),
-					qntwarning = ParseInt(values[66]),
-					mindam = ParseInt(values[67]),
-					maxdam = ParseInt(values[68]),
-					StrBonus = ParseInt(values[69]),
-					DexBonus = ParseInt(values[70]),
-					gemoffset = ParseInt(values[71]),
-					bitfield1 = ParseInt(values[72]),
-					CharsiMin = ParseInt(values[73]),
-					CharsiMax = ParseInt(values[74]),
-					CharsiMagicMin = ParseInt(values[75]),
-					CharsiMagicMax = ParseInt(values[76]),
-					CharsiMagicLvl = ParseInt(values[77]),
-					GheedMin = ParseInt(values[78]),
-					GheedMax = ParseInt(values[79]),
-					GheedMagicMin = ParseInt(values[80]),
-					GheedMagicMax = ParseInt(values[81]),
-					GheedMagicLvl = ParseInt(values[82]),
-					AkaraMin = ParseInt(values[83]),
-					AkaraMax = ParseInt(values[84]),
-					AkaraMagicMin = ParseInt(values[85]),
-					AkaraMagicMax = ParseInt(values[86]),
-					AkaraMagicLvl = ParseInt(values[87]),
-					FaraMin = ParseInt(values[88]),
-					FaraMax = ParseInt(values[89]),
-					FaraMagicMin = ParseInt(values[90]),
-					FaraMagicMax = ParseInt(values[91]),
-					FaraMagicLvl = ParseInt(values[92]),
-					LysanderMin = ParseInt(values[93]),
-					LysanderMax = ParseInt(values[94]),
-					LysanderMagicMin = ParseInt(values[95]),
-					LysanderMagicMax = ParseInt(values[96]),
-					LysanderMagicLvl = ParseInt(values[97]),
-					DrognanMin = ParseInt(values[98]),
-					DrognanMax = ParseInt(values[99]),
-					DrognanMagicMin = ParseInt(values[100]),
-					DrognanMagicMax = ParseInt(values[101]),
-					DrognanMagicLvl = ParseInt(values[102]),
-					HratliMin = ParseInt(values[103]),
-					HratliMax = ParseInt(values[104]),
-					HratliMagicMin = ParseInt(values[105]),
-					HratliMagicMax = ParseInt(values[106]),
-					HratliMagicLvl = ParseInt(values[107]),
-					AlkorMin = ParseInt(values[108]),
-					AlkorMax = ParseInt(values[109]),
-					AlkorMagicMin = ParseInt(values[110]),
-					AlkorMagicMax = ParseInt(values[111]),
-					AlkorMagicLvl = ParseInt(values[112]),
-					OrmusMin = ParseInt(values[113]),
-					OrmusMax = ParseInt(values[114]),
-					OrmusMagicMin = ParseInt(values[115]),
-					OrmusMagicMax = ParseInt(values[116]),
-					OrmusMagicLvl = ParseInt(values[117]),
-					ElzixMin = ParseInt(values[118]),
-					ElzixMax = ParseInt(values[119]),
-					ElzixMagicMin = ParseInt(values[120]),
-					ElzixMagicMax = ParseInt(values[121]),
-					ElzixMagicLvl = ParseInt(values[122]),
-					AshearaMin = ParseInt(values[123]),
-					AshearaMax = ParseInt(values[124]),
-					AshearaMagicMin = ParseInt(values[125]),
-					AshearaMagicMax = ParseInt(values[126]),
-					AshearaMagicLvl = ParseInt(values[127]),
-					CainMin = ParseInt(values[128]),
-					CainMax = ParseInt(values[129]),
-					CainMagicMin = ParseInt(values[130]),
-					CainMagicMax = ParseInt(values[131]),
-					CainMagicLvl = ParseInt(values[132]),
-					HalbuMin = ParseInt(values[133]),
-					HalbuMax = ParseInt(values[134]),
-					HalbuMagicMin = ParseInt(values[135]),
-					HalbuMagicMax = ParseInt(values[136]),
-					HalbuMagicLvl = ParseInt(values[137]),
-					JamellaMin = ParseInt(values[138]),
-					JamellaMax = ParseInt(values[139]),
-					JamellaMagicMin = ParseInt(values[140]),
-					JamellaMagicMax = ParseInt(values[141]),
-					JamellaMagicLvl = ParseInt(values[142]),
-					LarzukMin = ParseInt(values[143]),
-					LarzukMax = ParseInt(values[144]),
-					LarzukMagicMin = ParseInt(values[145]),
-					LarzukMagicMax = ParseInt(values[146]),
-					LarzukMagicLvl = ParseInt(values[147]),
-					MalahMin = ParseInt(values[148]),
-					MalahMax = ParseInt(values[149]),
-					MalahMagicMin = ParseInt(values[150]),
-					MalahMagicMax = ParseInt(values[151]),
-					MalahMagicLvl = ParseInt(values[152]),
-					AnyaMin = ParseInt(values[153]),
-					AnyaMax = ParseInt(values[154]),
-					AnyaMagicMin = ParseInt(values[155]),
-					AnyaMagicMax = ParseInt(values[156]),
-					AnyaMagicLvl = ParseInt(values[157]),
-					Transform = ParseInt(values[158]),
-					InvTrans = ParseInt(values[159]),
-					SkipName = ParseBool(values[160]),
-					NightmareUpgrade = values[161],
-					HellUpgrade = values[162],
-					Nameable = ParseBool(values[163]),
-					PermStoreItem = ParseBool(values[164]),
-					diablocloneweight = ParseInt(values[165])
-				});
+				var item = new Armor();
+				item.name = key;
+				item.version = ParseInt(values[1]);
+				item.compactsave = ParseBool(values[2]);
+				item.rarity = ParseInt(values[3]);
+				item.spawnable = ParseBool(values[4]);
+				item.minac = ParseInt(values[5]);
+				item.maxac = ParseInt(values[6]);
+				item.speed = ParseInt(values[7]);
+				item.reqstr = ParseInt(values[8]);
+				item.reqdex = ParseInt(values[9]);
+				item.block = ParseInt(values[10]);
+				item.durability = ParseInt(values[11]);
+				item.nodurability = ParseInt(values[12]);
+				item.level = ParseInt(values[13]);
+				item.ShowLevel = ParseInt(values[14]);
+				item.levelreq = ParseInt(values[15]);
+				item.cost = ParseInt(values[16]);
+				item.gamble_cost = ParseInt(values[17]);
+				item.code = values[18];
+				item.namestr = values[19];
+				item.magic_lvl = ParseInt(values[20]);
+				item.auto_prefix = ParseInt(values[21]);
+				item.alternategfx = values[22];
+				item.normcode = values[23];
+				item.ubercode = values[24];
+				item.ultracode = values[25];
+				item.component = ParseInt(values[26]);
+				item.invwidth = ParseInt(values[27]);
+				item.invheight = ParseInt(values[28]);
+				item.hasinv = ParseInt(values[29]);
+				item.gemsockets = ParseInt(values[30]);
+				item.gemapplytype = ParseInt(values[31]);
+				item.flippyfile = values[32];
+				item.invfile = values[33];
+				item.uniqueinvfile = values[34];
+				item.setinvfile = values[35];
+				item.rArm = ParseInt(values[36]);
+				item.lArm = ParseInt(values[37]);
+				item.Torso = ParseInt(values[38]);
+				item.Legs = ParseInt(values[39]);
+				item.rSPad = ParseInt(values[40]);
+				item.lSPad = ParseInt(values[41]);
+				item.useable = ParseBool(values[42]);
+				item.stackable = ParseBool(values[43]);
+				item.minstack = ParseInt(values[44]);
+				item.maxstack = ParseInt(values[45]);
+				item.spawnstack = ParseInt(values[46]);
+				item.Transmogrify = ParseBool(values[47]);
+				item.TMogType = values[48];
+				item.TMogMin = ParseInt(values[49]);
+				item.TMogMax = ParseInt(values[50]);
+				item.type = values[51];
+				item.type2 = values[52];
+				item.dropsound = values[53];
+				item.dropsfxframe = ParseInt(values[54]);
+				item.usesound = values[55];
+				item.unique = ParseBool(values[56]);
+				item.transparent = ParseBool(values[57]);
+				item.transtbl = ParseInt(values[58]);
+				item.quivered = ParseBool(values[59]);
+				item.lightradius = ParseInt(values[60]);
+				item.belt = ParseInt(values[61]);
+				item.quest = values[62];
+				item.questdiffcheck = values[63];
+				item.missiletype = ParseBool(values[64]);
+				item.durwarning = ParseInt(values[65]);
+				item.qntwarning = ParseInt(values[66]);
+				item.mindam = ParseInt(values[67]);
+				item.maxdam = ParseInt(values[68]);
+				item.StrBonus = ParseInt(values[69]);
+				item.DexBonus = ParseInt(values[70]);
+				item.gemoffset = ParseInt(values[71]);
+				item.bitfield1 = ParseInt(values[72]);
+				item.CharsiMin = ParseInt(values[73]);
+				item.CharsiMax = ParseInt(values[74]);
+				item.CharsiMagicMin = ParseInt(values[75]);
+				item.CharsiMagicMax = ParseInt(values[76]);
+				item.CharsiMagicLvl = ParseInt(values[77]);
+				item.GheedMin = ParseInt(values[78]);
+				item.GheedMax = ParseInt(values[79]);
+				item.GheedMagicMin = ParseInt(values[80]);
+				item.GheedMagicMax = ParseInt(values[81]);
+				item.GheedMagicLvl = ParseInt(values[82]);
+				item.AkaraMin = ParseInt(values[83]);
+				item.AkaraMax = ParseInt(values[84]);
+				item.AkaraMagicMin = ParseInt(values[85]);
+				item.AkaraMagicMax = ParseInt(values[86]);
+				item.AkaraMagicLvl = ParseInt(values[87]);
+				item.FaraMin = ParseInt(values[88]);
+				item.FaraMax = ParseInt(values[89]);
+				item.FaraMagicMin = ParseInt(values[90]);
+				item.FaraMagicMax = ParseInt(values[91]);
+				item.FaraMagicLvl = ParseInt(values[92]);
+				item.LysanderMin = ParseInt(values[93]);
+				item.LysanderMax = ParseInt(values[94]);
+				item.LysanderMagicMin = ParseInt(values[95]);
+				item.LysanderMagicMax = ParseInt(values[96]);
+				item.LysanderMagicLvl = ParseInt(values[97]);
+				item.DrognanMin = ParseInt(values[98]);
+				item.DrognanMax = ParseInt(values[99]);
+				item.DrognanMagicMin = ParseInt(values[100]);
+				item.DrognanMagicMax = ParseInt(values[101]);
+				item.DrognanMagicLvl = ParseInt(values[102]);
+				item.HratliMin = ParseInt(values[103]);
+				item.HratliMax = ParseInt(values[104]);
+				item.HratliMagicMin = ParseInt(values[105]);
+				item.HratliMagicMax = ParseInt(values[106]);
+				item.HratliMagicLvl = ParseInt(values[107]);
+				item.AlkorMin = ParseInt(values[108]);
+				item.AlkorMax = ParseInt(values[109]);
+				item.AlkorMagicMin = ParseInt(values[110]);
+				item.AlkorMagicMax = ParseInt(values[111]);
+				item.AlkorMagicLvl = ParseInt(values[112]);
+				item.OrmusMin = ParseInt(values[113]);
+				item.OrmusMax = ParseInt(values[114]);
+				item.OrmusMagicMin = ParseInt(values[115]);
+				item.OrmusMagicMax = ParseInt(values[116]);
+				item.OrmusMagicLvl = ParseInt(values[117]);
+				item.ElzixMin = ParseInt(values[118]);
+				item.ElzixMax = ParseInt(values[119]);
+				item.ElzixMagicMin = ParseInt(values[120]);
+				item.ElzixMagicMax = ParseInt(values[121]);
+				item.ElzixMagicLvl = ParseInt(values[122]);
+				item.AshearaMin = ParseInt(values[123]);
+				item.AshearaMax = ParseInt(values[124]);
+				item.AshearaMagicMin = ParseInt(values[125]);
+				item.AshearaMagicMax = ParseInt(values[126]);
+				item.AshearaMagicLvl = ParseInt(values[127]);
+				item.CainMin = ParseInt(values[128]);
+				item.CainMax = ParseInt(values[129]);
+				item.CainMagicMin = ParseInt(values[130]);
+				item.CainMagicMax = ParseInt(values[131]);
+				item.CainMagicLvl = ParseInt(values[132]);
+				item.HalbuMin = ParseInt(values[133]);
+				item.HalbuMax = ParseInt(values[134]);
+				item.HalbuMagicMin = ParseInt(values[135]);
+				item.HalbuMagicMax = ParseInt(values[136]);
+				item.HalbuMagicLvl = ParseInt(values[137]);
+				item.JamellaMin = ParseInt(values[138]);
+				item.JamellaMax = ParseInt(values[139]);
+				item.JamellaMagicMin = ParseInt(values[140]);
+				item.JamellaMagicMax = ParseInt(values[141]);
+				item.JamellaMagicLvl = ParseInt(values[142]);
+				item.LarzukMin = ParseInt(values[143]);
+				item.LarzukMax = ParseInt(values[144]);
+				item.LarzukMagicMin = ParseInt(values[145]);
+				item.LarzukMagicMax = ParseInt(values[146]);
+				item.LarzukMagicLvl = ParseInt(values[147]);
+				item.MalahMin = ParseInt(values[148]);
+				item.MalahMax = ParseInt(values[149]);
+				item.MalahMagicMin = ParseInt(values[150]);
+				item.MalahMagicMax = ParseInt(values[151]);
+				item.MalahMagicLvl = ParseInt(values[152]);
+				item.AnyaMin = ParseInt(values[153]);
+				item.AnyaMax = ParseInt(values[154]);
+				item.AnyaMagicMin = ParseInt(values[155]);
+				item.AnyaMagicMax = ParseInt(values[156]);
+				item.AnyaMagicLvl = ParseInt(values[157]);
+				item.Transform = ParseInt(values[158]);
+				item.InvTrans = ParseInt(values[159]);
+				item.SkipName = ParseBool(values[160]);
+				item.NightmareUpgrade = values[161];
+				item.HellUpgrade = values[162];
+				item.Nameable = ParseBool(values[163]);
+				item.PermStoreItem = ParseBool(values[164]);
+				item.diablocloneweight = ParseInt(values[165]);
+
+				armors.Add(key, item);
 			}
-		}
 
-		// Implementation for reading misc.txt
-		public static void ReadMisc(string root)
-		{
-			string[] lines = File.ReadAllLines(root + "\\data\\global\\excel\\misc.txt");
-
-			for (int i = 1; i < lines.Length; i++)
-			{
-				var values = lines[i].Split('\t');
-				var key = values[0];
-				if (string.IsNullOrWhiteSpace(key)) continue;
-
-				miscs.Add(key, new Misc
-				{
-					name = key,
-					compactsave = ParseBool(values[1]),
-					version = ParseInt(values[2]),
-					level = ParseInt(values[3]),
-					ShowLevel = ParseInt(values[4]),
-					levelreq = ParseInt(values[5]),
-					reqstr = ParseInt(values[6]),
-					reqdex = ParseInt(values[7]),
-					rarity = ParseInt(values[8]),
-					spawnable = ParseBool(values[9]),
-					speed = ParseInt(values[10]),
-					nodurability = ParseInt(values[11]),
-					cost = ParseInt(values[12]),
-					gamble_cost = ParseInt(values[13]),
-					code = values[14],
-					alternategfx = values[15],
-					namestr = values[16],
-					component = ParseInt(values[17]),
-					invwidth = ParseInt(values[18]),
-					invheight = ParseInt(values[19]),
-					hasinv = ParseInt(values[20]),
-					gemsockets = ParseInt(values[21]),
-					gemapplytype = ParseInt(values[22]),
-					flippyfile = values[23],
-					invfile = values[24],
-					uniqueinvfile = values[25],
-					Transmogrify = ParseBool(values[26]),
-					TMogType = values[27],
-					TMogMin = ParseInt(values[28]),
-					TMogMax = ParseInt(values[29]),
-					useable = ParseBool(values[30]),
-					type = values[31],
-					type2 = values[32],
-					dropsound = values[33],
-					dropsfxframe = ParseInt(values[34]),
-					usesound = values[35],
-					unique = ParseBool(values[36]),
-					transparent = ParseBool(values[37]),
-					transtbl = ParseInt(values[38]),
-					quivered = ParseBool(values[39]),
-					lightradius = ParseInt(values[40]),
-					belt = ParseInt(values[41]),
-					autobelt = ParseBool(values[42]),
-					stackable = ParseBool(values[43]),
-					minstack = ParseInt(values[44]),
-					maxstack = ParseInt(values[45]),
-					spawnstack = ParseInt(values[46]),
-					quest = values[47],
-					questdiffcheck = values[48],
-					missiletype = ParseBool(values[49]),
-					spellicon = ParseInt(values[50]),
-					pSpell = ParseInt(values[51]),
-					state = values[52],
-					cstate1 = values[53],
-					cstate2 = values[54],
-					len = ParseInt(values[55]),
-					stat1 = values[56],
-					calc1 = ParseInt(values[57]),
-					stat2 = values[58],
-					calc2 = ParseInt(values[59]),
-					stat3 = values[60],
-					calc3 = ParseInt(values[61]),
-					spelldesc = ParseInt(values[62]),
-					spelldescstr = values[63],
-					spelldescstr2 = values[64],
-					spelldesccalc = ParseInt(values[65]),
-					spelldesccolor = ParseInt(values[66]),
-					durwarning = ParseInt(values[67]),
-					qntwarning = ParseInt(values[68]),
-					mindam = ParseInt(values[69]),
-					maxdam = ParseInt(values[70]),
-					StrBonus = ParseInt(values[71]),
-					DexBonus = ParseInt(values[72]),
-					gemoffset = ParseInt(values[73]),
-					bitfield1 = ParseInt(values[74]),
-					CharsiMin = ParseInt(values[75]),
-					CharsiMax = ParseInt(values[76]),
-					CharsiMagicMin = ParseInt(values[77]),
-					CharsiMagicMax = ParseInt(values[78]),
-					CharsiMagicLvl = ParseInt(values[79]),
-					GheedMin = ParseInt(values[80]),
-					GheedMax = ParseInt(values[81]),
-					GheedMagicMin = ParseInt(values[82]),
-					GheedMagicMax = ParseInt(values[83]),
-					GheedMagicLvl = ParseInt(values[84]),
-					AkaraMin = ParseInt(values[85]),
-					AkaraMax = ParseInt(values[86]),
-					AkaraMagicMin = ParseInt(values[87]),
-					AkaraMagicMax = ParseInt(values[88]),
-					AkaraMagicLvl = ParseInt(values[89]),
-					FaraMin = ParseInt(values[90]),
-					FaraMax = ParseInt(values[91]),
-					FaraMagicMin = ParseInt(values[92]),
-					FaraMagicMax = ParseInt(values[93]),
-					FaraMagicLvl = ParseInt(values[94]),
-					LysanderMin = ParseInt(values[95]),
-					LysanderMax = ParseInt(values[96]),
-					LysanderMagicMin = ParseInt(values[97]),
-					LysanderMagicMax = ParseInt(values[98]),
-					LysanderMagicLvl = ParseInt(values[99]),
-					DrognanMin = ParseInt(values[100]),
-					DrognanMax = ParseInt(values[101]),
-					DrognanMagicMin = ParseInt(values[102]),
-					DrognanMagicMax = ParseInt(values[103]),
-					DrognanMagicLvl = ParseInt(values[104]),
-					HratliMin = ParseInt(values[105]),
-					HratliMax = ParseInt(values[106]),
-					HratliMagicMin = ParseInt(values[107]),
-					HratliMagicMax = ParseInt(values[108]),
-					HratliMagicLvl = ParseInt(values[109]),
-					AlkorMin = ParseInt(values[110]),
-					AlkorMax = ParseInt(values[111]),
-					AlkorMagicMin = ParseInt(values[112]),
-					AlkorMagicMax = ParseInt(values[113]),
-					AlkorMagicLvl = ParseInt(values[114]),
-					OrmusMin = ParseInt(values[115]),
-					OrmusMax = ParseInt(values[116]),
-					OrmusMagicMin = ParseInt(values[117]),
-					OrmusMagicMax = ParseInt(values[118]),
-					OrmusMagicLvl = ParseInt(values[119]),
-					ElzixMin = ParseInt(values[120]),
-					ElzixMax = ParseInt(values[121]),
-					ElzixMagicMin = ParseInt(values[122]),
-					ElzixMagicMax = ParseInt(values[123]),
-					ElzixMagicLvl = ParseInt(values[124]),
-					AshearaMin = ParseInt(values[125]),
-					AshearaMax = ParseInt(values[126]),
-					AshearaMagicMin = ParseInt(values[127]),
-					AshearaMagicMax = ParseInt(values[128]),
-					AshearaMagicLvl = ParseInt(values[129]),
-					CainMin = ParseInt(values[130]),
-					CainMax = ParseInt(values[131]),
-					CainMagicMin = ParseInt(values[132]),
-					CainMagicMax = ParseInt(values[133]),
-					CainMagicLvl = ParseInt(values[134]),
-					HalbuMin = ParseInt(values[135]),
-					HalbuMax = ParseInt(values[136]),
-					HalbuMagicMin = ParseInt(values[137]),
-					HalbuMagicMax = ParseInt(values[138]),
-					HalbuMagicLvl = ParseInt(values[139]),
-					JamellaMin = ParseInt(values[140]),
-					JamellaMax = ParseInt(values[141]),
-					JamellaMagicMin = ParseInt(values[142]),
-					JamellaMagicMax = ParseInt(values[143]),
-					JamellaMagicLvl = ParseInt(values[144]),
-					LarzukMin = ParseInt(values[145]),
-					LarzukMax = ParseInt(values[146]),
-					LarzukMagicMin = ParseInt(values[147]),
-					LarzukMagicMax = ParseInt(values[148]),
-					LarzukMagicLvl = ParseInt(values[149]),
-					MalahMin = ParseInt(values[150]),
-					MalahMax = ParseInt(values[151]),
-					MalahMagicMin = ParseInt(values[152]),
-					MalahMagicMax = ParseInt(values[153]),
-					MalahMagicLvl = ParseInt(values[154]),
-					AnyaMin = ParseInt(values[155]),
-					AnyaMax = ParseInt(values[156]),
-					AnyaMagicMin = ParseInt(values[157]),
-					AnyaMagicMax = ParseInt(values[158]),
-					AnyaMagicLvl = ParseInt(values[159]),
-					Transform = ParseInt(values[160]),
-					InvTrans = ParseInt(values[161]),
-					SkipName = ParseBool(values[162]),
-					NightmareUpgrade = values[163],
-					HellUpgrade = values[164],
-					Nameable = ParseBool(values[165]),
-					PermStoreItem = ParseBool(values[166]),
-					diablocloneweight = ParseInt(values[167])
-					// if files include more fields, extend indexes accordingly
-				});
-			}
+			Log.Information("Loaded {Count} armors", armors.Count);
 		}
 
 		// Implementation for reading weapons.txt
 		public static void ReadWeapons(string root)
 		{
-			string[] lines = File.ReadAllLines(root + "\\data\\global\\excel\\weapons.txt");
+			string[] lines = File.ReadAllLines(root + "\\data\\global\\v99\\excel\\weapons.txt");
+			int headerCount = lines[0].Split('\t').Length;
+
+			if (headerCount != 168)
+			{
+				string msg = $"Weapon data table header count was incorrect ({headerCount}). Expected: 168";
+				InvalidOperationException ex = new(msg);
+				Log.Error(ex, msg);
+				throw ex;
+			}
 
 			for (int i = 1; i < lines.Length; i++)
 			{
 				var values = lines[i].Split('\t');
-				var key = values[0];
+				var key = values[3];
 				if (string.IsNullOrWhiteSpace(key)) continue;
 
-				weapons.Add(key, new Weapon
-				{
-					name = key,
-					type = values[1],
-					type2 = values[2],
-					code = values[3],
-					alternategfx = values[4],
-					namestr = values[5],
-					version = ParseInt(values[6]),
-					compactsave = ParseBool(values[7]),
-					rarity = ParseInt(values[8]),
-					spawnable = ParseBool(values[9]),
-					Transmogrify = ParseBool(values[10]),
-					TMogType = values[11],
-					TMogMin = ParseInt(values[12]),
-					TMogMax = ParseInt(values[13]),
-					mindam = ParseInt(values[14]),
-					maxdam = ParseInt(values[15]),
-					one_or_two_handed = ParseBool(values[16]),
-					two_handed = ParseBool(values[17]),
-					two_handed_min_dam = ParseInt(values[18]),
-					two_handed_max_dam = ParseInt(values[19]),
-					min_mis_dam = ParseInt(values[20]),
-					max_mis_dam = ParseInt(values[21]),
-					rangeadder = ParseInt(values[22]),
-					speed = ParseInt(values[23]),
-					StrBonus = ParseInt(values[24]),
-					DexBonus = ParseInt(values[25]),
-					reqstr = ParseInt(values[26]),
-					reqdex = ParseInt(values[27]),
-					durability = ParseInt(values[28]),
-					nodurability = ParseInt(values[29]),
-					level = ParseInt(values[30]),
-					ShowLevel = ParseInt(values[31]),
-					levelreq = ParseInt(values[32]),
-					cost = ParseInt(values[33]),
-					gamble_cost = ParseInt(values[34]),
-					magic_lvl = ParseInt(values[35]),
-					auto_prefix = ParseInt(values[36]),
-					normcode = values[37],
-					ubercode = values[38],
-					ultracode = values[39],
-					wclass = values[40],
-					two_handed_class = values[41],
-					component = ParseInt(values[42]),
-					hitclass = values[43],
-					invwidth = ParseInt(values[44]),
-					invheight = ParseInt(values[45]),
-					stackable = ParseBool(values[46]),
-					minstack = ParseInt(values[47]),
-					maxstack = ParseInt(values[48]),
-					spawnstack = ParseInt(values[49]),
-					flippyfile = values[50],
-					invfile = values[51],
-					uniqueinvfile = values[52],
-					setinvfile = values[53],
-					hasinv = ParseInt(values[54]),
-					gemsockets = ParseInt(values[55]),
-					gemapplytype = ParseInt(values[56]),
-					comment = values[57],
-					useable = ParseBool(values[58]),
-					dropsound = values[59],
-					dropsfxframe = ParseInt(values[60]),
-					usesound = values[61],
-					unique = ParseBool(values[62]),
-					transparent = ParseBool(values[63]),
-					transtbl = ParseInt(values[64]),
-					quivered = ParseBool(values[65]),
-					lightradius = ParseInt(values[66]),
-					belt = ParseInt(values[67]),
-					quest = values[68],
-					questdiffcheck = values[69],
-					missiletype = ParseBool(values[70]),
-					durwarning = ParseInt(values[71]),
-					qntwarning = ParseInt(values[72]),
-					gemoffset = ParseInt(values[73]),
-					bitfield1 = ParseInt(values[74]),
-					CharsiMin = ParseInt(values[75]),
-					CharsiMax = ParseInt(values[76]),
-					CharsiMagicMin = ParseInt(values[77]),
-					CharsiMagicMax = ParseInt(values[78]),
-					CharsiMagicLvl = ParseInt(values[79]),
-					GheedMin = ParseInt(values[80]),
-					GheedMax = ParseInt(values[81]),
-					GheedMagicMin = ParseInt(values[82]),
-					GheedMagicMax = ParseInt(values[83]),
-					GheedMagicLvl = ParseInt(values[84]),
-					AkaraMin = ParseInt(values[85]),
-					AkaraMax = ParseInt(values[86]),
-					AkaraMagicMin = ParseInt(values[87]),
-					AkaraMagicMax = ParseInt(values[88]),
-					AkaraMagicLvl = ParseInt(values[89]),
-					FaraMin = ParseInt(values[90]),
-					FaraMax = ParseInt(values[91]),
-					FaraMagicMin = ParseInt(values[92]),
-					FaraMagicMax = ParseInt(values[93]),
-					FaraMagicLvl = ParseInt(values[94]),
-					LysanderMin = ParseInt(values[95]),
-					LysanderMax = ParseInt(values[96]),
-					LysanderMagicMin = ParseInt(values[97]),
-					LysanderMagicMax = ParseInt(values[98]),
-					LysanderMagicLvl = ParseInt(values[99]),
-					DrognanMin = ParseInt(values[100]),
-					DrognanMax = ParseInt(values[101]),
-					DrognanMagicMin = ParseInt(values[102]),
-					DrognanMagicMax = ParseInt(values[103]),
-					DrognanMagicLvl = ParseInt(values[104]),
-					HratliMin = ParseInt(values[105]),
-					HratliMax = ParseInt(values[106]),
-					HratliMagicMin = ParseInt(values[107]),
-					HratliMagicMax = ParseInt(values[108]),
-					HratliMagicLvl = ParseInt(values[109]),
-					AlkorMin = ParseInt(values[110]),
-					AlkorMax = ParseInt(values[111]),
-					AlkorMagicMin = ParseInt(values[112]),
-					AlkorMagicMax = ParseInt(values[113]),
-					AlkorMagicLvl = ParseInt(values[114]),
-					OrmusMin = ParseInt(values[115]),
-					OrmusMax = ParseInt(values[116]),
-					OrmusMagicMin = ParseInt(values[117]),
-					OrmusMagicMax = ParseInt(values[118]),
-					OrmusMagicLvl = ParseInt(values[119]),
-					ElzixMin = ParseInt(values[120]),
-					ElzixMax = ParseInt(values[121]),
-					ElzixMagicMin = ParseInt(values[122]),
-					ElzixMagicMax = ParseInt(values[123]),
-					ElzixMagicLvl = ParseInt(values[124]),
-					AshearaMin = ParseInt(values[125]),
-					AshearaMax = ParseInt(values[126]),
-					AshearaMagicMin = ParseInt(values[127]),
-					AshearaMagicMax = ParseInt(values[128]),
-					AshearaMagicLvl = ParseInt(values[129]),
-					CainMin = ParseInt(values[130]),
-					CainMax = ParseInt(values[131]),
-					CainMagicMin = ParseInt(values[132]),
-					CainMagicMax = ParseInt(values[133]),
-					CainMagicLvl = ParseInt(values[134]),
-					HalbuMin = ParseInt(values[135]),
-					HalbuMax = ParseInt(values[136]),
-					HalbuMagicMin = ParseInt(values[137]),
-					HalbuMagicMax = ParseInt(values[138]),
-					HalbuMagicLvl = ParseInt(values[139]),
-					JamellaMin = ParseInt(values[140]),
-					JamellaMax = ParseInt(values[141]),
-					JamellaMagicMin = ParseInt(values[142]),
-					JamellaMagicMax = ParseInt(values[143]),
-					JamellaMagicLvl = ParseInt(values[144]),
-					LarzukMin = ParseInt(values[145]),
-					LarzukMax = ParseInt(values[146]),
-					LarzukMagicMin = ParseInt(values[147]),
-					LarzukMagicMax = ParseInt(values[148]),
-					LarzukMagicLvl = ParseInt(values[149]),
-					MalahMin = ParseInt(values[150]),
-					MalahMax = ParseInt(values[151]),
-					MalahMagicMin = ParseInt(values[152]),
-					MalahMagicMax = ParseInt(values[153]),
-					MalahMagicLvl = ParseInt(values[154]),
-					AnyaMin = ParseInt(values[155]),
-					AnyaMax = ParseInt(values[156]),
-					AnyaMagicMin = ParseInt(values[157]),
-					AnyaMagicMax = ParseInt(values[158]),
-					AnyaMagicLvl = ParseInt(values[159]),
-					Transform = ParseInt(values[160]),
-					InvTrans = ParseInt(values[161]),
-					SkipName = ParseBool(values[162]),
-					NightmareUpgrade = values[163],
-					HellUpgrade = values[164],
-					Nameable = ParseBool(values[165]),
-					PermStoreItem = ParseBool(values[166]),
-					diablocloneweight = ParseInt(values[167])
-				});
+				var item = new Weapon();
+				item.name = key;
+				item.type = values[1];
+				item.type2 = values[2];
+				item.code = values[3];
+				item.alternategfx = values[4];
+				item.namestr = values[5];
+				item.version = ParseInt(values[6]);
+				item.compactsave = ParseBool(values[7]);
+				item.rarity = ParseInt(values[8]);
+				item.spawnable = ParseBool(values[9]);
+				item.Transmogrify = ParseBool(values[10]);
+				item.TMogType = values[11];
+				item.TMogMin = ParseInt(values[12]);
+				item.TMogMax = ParseInt(values[13]);
+				item.mindam = ParseInt(values[14]);
+				item.maxdam = ParseInt(values[15]);
+				item.one_or_two_handed = ParseBool(values[16]);
+				item.two_handed = ParseBool(values[17]);
+				item.two_handed_min_dam = ParseInt(values[18]);
+				item.two_handed_max_dam = ParseInt(values[19]);
+				item.min_mis_dam = ParseInt(values[20]);
+				item.max_mis_dam = ParseInt(values[21]);
+				item.rangeadder = ParseInt(values[22]);
+				item.speed = ParseInt(values[23]);
+				item.StrBonus = ParseInt(values[24]);
+				item.DexBonus = ParseInt(values[25]);
+				item.reqstr = ParseInt(values[26]);
+				item.reqdex = ParseInt(values[27]);
+				item.durability = ParseInt(values[28]);
+				item.nodurability = ParseInt(values[29]);
+				item.level = ParseInt(values[30]);
+				item.ShowLevel = ParseInt(values[31]);
+				item.levelreq = ParseInt(values[32]);
+				item.cost = ParseInt(values[33]);
+				item.gamble_cost = ParseInt(values[34]);
+				item.magic_lvl = ParseInt(values[35]);
+				item.auto_prefix = ParseInt(values[36]);
+				item.normcode = values[37];
+				item.ubercode = values[38];
+				item.ultracode = values[39];
+				item.wclass = values[40];
+				item.two_handed_class = values[41];
+				item.component = ParseInt(values[42]);
+				item.hitclass = values[43];
+				item.invwidth = ParseInt(values[44]);
+				item.invheight = ParseInt(values[45]);
+				item.stackable = ParseBool(values[46]);
+				item.minstack = ParseInt(values[47]);
+				item.maxstack = ParseInt(values[48]);
+				item.spawnstack = ParseInt(values[49]);
+				item.flippyfile = values[50];
+				item.invfile = values[51];
+				item.uniqueinvfile = values[52];
+				item.setinvfile = values[53];
+				item.hasinv = ParseInt(values[54]);
+				item.gemsockets = ParseInt(values[55]);
+				item.gemapplytype = ParseInt(values[56]);
+				item.comment = values[57];
+				item.useable = ParseBool(values[58]);
+				item.dropsound = values[59];
+				item.dropsfxframe = ParseInt(values[60]);
+				item.usesound = values[61];
+				item.unique = ParseBool(values[62]);
+				item.transparent = ParseBool(values[63]);
+				item.transtbl = ParseInt(values[64]);
+				item.quivered = ParseBool(values[65]);
+				item.lightradius = ParseInt(values[66]);
+				item.belt = ParseInt(values[67]);
+				item.quest = values[68];
+				item.questdiffcheck = values[69];
+				item.missiletype = ParseBool(values[70]);
+				item.durwarning = ParseInt(values[71]);
+				item.qntwarning = ParseInt(values[72]);
+				item.gemoffset = ParseInt(values[73]);
+				item.bitfield1 = ParseInt(values[74]);
+				item.CharsiMin = ParseInt(values[75]);
+				item.CharsiMax = ParseInt(values[76]);
+				item.CharsiMagicMin = ParseInt(values[77]);
+				item.CharsiMagicMax = ParseInt(values[78]);
+				item.CharsiMagicLvl = ParseInt(values[79]);
+				item.GheedMin = ParseInt(values[80]);
+				item.GheedMax = ParseInt(values[81]);
+				item.GheedMagicMin = ParseInt(values[82]);
+				item.GheedMagicMax = ParseInt(values[83]);
+				item.GheedMagicLvl = ParseInt(values[84]);
+				item.AkaraMin = ParseInt(values[85]);
+				item.AkaraMax = ParseInt(values[86]);
+				item.AkaraMagicMin = ParseInt(values[87]);
+				item.AkaraMagicMax = ParseInt(values[88]);
+				item.AkaraMagicLvl = ParseInt(values[89]);
+				item.FaraMin = ParseInt(values[90]);
+				item.FaraMax = ParseInt(values[91]);
+				item.FaraMagicMin = ParseInt(values[92]);
+				item.FaraMagicMax = ParseInt(values[93]);
+				item.FaraMagicLvl = ParseInt(values[94]);
+				item.LysanderMin = ParseInt(values[95]);
+				item.LysanderMax = ParseInt(values[96]);
+				item.LysanderMagicMin = ParseInt(values[97]);
+				item.LysanderMagicMax = ParseInt(values[98]);
+				item.LysanderMagicLvl = ParseInt(values[99]);
+				item.DrognanMin = ParseInt(values[100]);
+				item.DrognanMax = ParseInt(values[101]);
+				item.DrognanMagicMin = ParseInt(values[102]);
+				item.DrognanMagicMax = ParseInt(values[103]);
+				item.DrognanMagicLvl = ParseInt(values[104]);
+				item.HratliMin = ParseInt(values[105]);
+				item.HratliMax = ParseInt(values[106]);
+				item.HratliMagicMin = ParseInt(values[107]);
+				item.HratliMagicMax = ParseInt(values[108]);
+				item.HratliMagicLvl = ParseInt(values[109]);
+				item.AlkorMin = ParseInt(values[110]);
+				item.AlkorMax = ParseInt(values[111]);
+				item.AlkorMagicMin = ParseInt(values[112]);
+				item.AlkorMagicMax = ParseInt(values[113]);
+				item.AlkorMagicLvl = ParseInt(values[114]);
+				item.OrmusMin = ParseInt(values[115]);
+				item.OrmusMax = ParseInt(values[116]);
+				item.OrmusMagicMin = ParseInt(values[117]);
+				item.OrmusMagicMax = ParseInt(values[118]);
+				item.OrmusMagicLvl = ParseInt(values[119]);
+				item.ElzixMin = ParseInt(values[120]);
+				item.ElzixMax = ParseInt(values[121]);
+				item.ElzixMagicMin = ParseInt(values[122]);
+				item.ElzixMagicMax = ParseInt(values[123]);
+				item.ElzixMagicLvl = ParseInt(values[124]);
+				item.AshearaMin = ParseInt(values[125]);
+				item.AshearaMax = ParseInt(values[126]);
+				item.AshearaMagicMin = ParseInt(values[127]);
+				item.AshearaMagicMax = ParseInt(values[128]);
+				item.AshearaMagicLvl = ParseInt(values[129]);
+				item.CainMin = ParseInt(values[130]);
+				item.CainMax = ParseInt(values[131]);
+				item.CainMagicMin = ParseInt(values[132]);
+				item.CainMagicMax = ParseInt(values[133]);
+				item.CainMagicLvl = ParseInt(values[134]);
+				item.HalbuMin = ParseInt(values[135]);
+				item.HalbuMax = ParseInt(values[136]);
+				item.HalbuMagicMin = ParseInt(values[137]);
+				item.HalbuMagicMax = ParseInt(values[138]);
+				item.HalbuMagicLvl = ParseInt(values[139]);
+				item.JamellaMin = ParseInt(values[140]);
+				item.JamellaMax = ParseInt(values[141]);
+				item.JamellaMagicMin = ParseInt(values[142]);
+				item.JamellaMagicMax = ParseInt(values[143]);
+				item.JamellaMagicLvl = ParseInt(values[144]);
+				item.LarzukMin = ParseInt(values[145]);
+				item.LarzukMax = ParseInt(values[146]);
+				item.LarzukMagicMin = ParseInt(values[147]);
+				item.LarzukMagicMax = ParseInt(values[148]);
+				item.LarzukMagicLvl = ParseInt(values[149]);
+				item.MalahMin = ParseInt(values[150]);
+				item.MalahMax = ParseInt(values[151]);
+				item.MalahMagicMin = ParseInt(values[152]);
+				item.MalahMagicMax = ParseInt(values[153]);
+				item.MalahMagicLvl = ParseInt(values[154]);
+				item.AnyaMin = ParseInt(values[155]);
+				item.AnyaMax = ParseInt(values[156]);
+				item.AnyaMagicMin = ParseInt(values[157]);
+				item.AnyaMagicMax = ParseInt(values[158]);
+				item.AnyaMagicLvl = ParseInt(values[159]);
+				item.Transform = ParseInt(values[160]);
+				item.InvTrans = ParseInt(values[161]);
+				item.SkipName = ParseBool(values[162]);
+				item.NightmareUpgrade = values[163];
+				item.HellUpgrade = values[164];
+				item.Nameable = ParseBool(values[165]);
+				item.PermStoreItem = ParseBool(values[166]);
+				item.diablocloneweight = ParseInt(values[167]);
+
+				weapons.Add(key, item);
 			}
+
+			Log.Information("Loaded {Count} weapons", weapons.Count);
 		}
 
-		// Implementation for reading uniques.txt
-		public static void ReadUniqueItems(string root)
+		// Implementation for reading misc.txt — made similar to ReadWeapons (uses code field as key)
+		public static void ReadMisc(string root)
 		{
-			string[] lines = File.ReadAllLines(root + "\\data\\global\\excel\\uniqueitems.txt");
+			string[] lines = File.ReadAllLines(root + "\\data\\global\\v99\\excel\\misc.txt");
+			int headerCount = lines[0].Split('\t').Length;
+
+			if (headerCount != 167)
+			{
+				string msg = $"Weapon data table header count was incorrect ({headerCount}). Expected: 167";
+				InvalidOperationException ex = new(msg);
+				Log.Error(ex, msg);
+				throw ex;
+			}
 
 			for (int i = 1; i < lines.Length; i++)
 			{
 				var values = lines[i].Split('\t');
-				var key = values[0];
-				if (string.IsNullOrWhiteSpace(key)) continue;
 
-				uniques.Add(key, new Unique
-				{
-					ID = ParseInt(values[0]),
-					version = ParseInt(values[1]),
-					enabled = ParseBool(values[2]),
-					firstLadderSeason = ParseInt(values[3]),
-					lastLadderSeason = ParseInt(values[4]),
-					rarity = ParseInt(values[5]),
-					nolimit = values[6],
-					lvl = ParseInt(values[7]),
-					lvl_req = ParseInt(values[8]),
-					code = values[9],
-					ItemName = values[10],
-					carry1 = ParseInt(values[11]),
-					cost_mult = ParseInt(values[12]),
-					cost_add = ParseInt(values[13]),
-					chrtransform = values[14],
-					invtransform = values[15],
-					flippyfile = values[16],
-					invfile = values[17],
-					dropsound = values[18],
-					dropsfxframe = ParseInt(values[19]),
-					usesound = values[20],
-					prop1 = values[21],
-					par1 = ParseInt(values[22]),
-					min1 = ParseInt(values[23]),
-					max1 = ParseInt(values[24]),
-					prop2 = values[25],
-					par2 = values[26],
-					min2 = ParseInt(values[27]),
-					max2 = ParseInt(values[28]),
-					prop3 = values[29],
-					par3 = values[30],
-					min3 = ParseInt(values[31]),
-					max3 = ParseInt(values[32]),
-					prop4 = values[33],
-					par4 = values[34],
-					min4 = ParseInt(values[35]),
-					max4 = ParseInt(values[36]),
-					prop5 = values[37],
-					par5 = values[38],
-					min5 = ParseInt(values[39]),
-					max5 = ParseInt(values[40]),
-					prop6 = values[41],
-					par6 = values[42],
-					min6 = ParseInt(values[43]),
-					max6 = ParseInt(values[44]),
-					prop7 = values[45],
-					par7 = values[46],
-					min7 = ParseInt(values[47]),
-					max7 = ParseInt(values[48]),
-					prop8 = values[49],
-					par8 = values[50],
-					min8 = ParseInt(values[51]),
-					max8 = ParseInt(values[52]),
-					prop9 = values[53],
-					par9 = values[54],
-					min9 = ParseInt(values[55]),
-					max9 = ParseInt(values[56]),
-					prop10 = values[57],
-					par10 = values[58],
-					min10 = ParseInt(values[59]),
-					max10 = ParseInt(values[60]),
-					prop11 = values[61],
-					par11 = values[62],
-					min11 = ParseInt(values[63]),
-					max11 = ParseInt(values[64]),
-					prop12 = values[65],
-					par12 = ParseInt(values[66]),
-					min12 = ParseInt(values[67]),
-					max12 = ParseInt(values[68]),
-					diablocloneweight = ParseInt(values[69])
-				});
+				var code = values[14];
+				if (string.IsNullOrWhiteSpace(code)) continue;
+
+				var item = new Misc();
+				item.name = values[0];
+				item.compactsave = ParseBool(values[1]);
+				item.version = ParseInt(values[2]);
+				item.level = ParseInt(values[3]);
+				item.ShowLevel = ParseInt(values[4]);
+				item.levelreq = ParseInt(values[5]);
+				item.reqstr = ParseInt(values[6]);
+				item.reqdex = ParseInt(values[7]);
+				item.rarity = ParseInt(values[8]);
+				item.spawnable = ParseBool(values[9]);
+				item.speed = ParseInt(values[10]);
+				item.nodurability = ParseInt(values[11]);
+				item.cost = ParseInt(values[12]);
+				item.gamble_cost = ParseInt(values[13]);
+				item.code = values[14];
+				item.alternategfx = values[15];
+				item.namestr = values[16];
+				item.component = ParseInt(values[17]);
+				item.invwidth = ParseInt(values[18]);
+				item.invheight = ParseInt(values[19]);
+				item.hasinv = ParseInt(values[20]);
+				item.gemsockets = ParseInt(values[21]);
+				item.gemapplytype = ParseInt(values[22]);
+				item.flippyfile = values[23];
+				item.invfile = values[24];
+				item.uniqueinvfile = values[25];
+				item.Transmogrify = ParseBool(values[26]);
+				item.TMogType = values[27];
+				item.TMogMin = ParseInt(values[28]);
+				item.TMogMax = ParseInt(values[29]);
+				item.useable = ParseBool(values[30]);
+				item.type = values[31];
+				item.type2 = values[32];
+				item.dropsound = values[33];
+				item.dropsfxframe = ParseInt(values[34]);
+				item.usesound = values[35];
+				item.unique = ParseBool(values[36]);
+				item.transparent = ParseBool(values[37]);
+				item.transtbl = ParseInt(values[38]);
+				item.lightradius = ParseInt(values[39]);
+				item.belt = ParseInt(values[40]);
+				item.autobelt = ParseBool(values[41]);
+				item.stackable = ParseBool(values[42]);
+				item.minstack = ParseInt(values[43]);
+				item.maxstack = ParseInt(values[44]);
+				item.spawnstack = ParseInt(values[45]);
+				item.quest = values[46];
+				item.questdiffcheck = values[47];
+				item.missiletype = ParseBool(values[48]);
+				item.spellicon = ParseInt(values[49]);
+				item.pSpell = ParseInt(values[50]);
+				item.state = values[51];
+				item.cstate1 = values[52];
+				item.cstate2 = values[53];
+				item.len = ParseInt(values[54]);
+				item.stat1 = values[55];
+				item.calc1 = ParseInt(values[56]);
+				item.stat2 = values[57];
+				item.calc2 = ParseInt(values[58]);
+				item.stat3 = values[59];
+				item.calc3 = ParseInt(values[60]);
+				item.spelldesc = ParseInt(values[61]);
+				item.spelldescstr = values[62];
+				item.spelldescstr2 = values[63];
+				item.spelldesccalc = ParseInt(values[64]);
+				item.spelldesccolor = ParseInt(values[65]);
+				item.durwarning = ParseInt(values[66]);
+				item.qntwarning = ParseInt(values[67]);
+				item.gemoffset = ParseInt(values[68]);
+				item.BetterGem = values[69];
+				item.bitfield1 = ParseInt(values[70]);
+				item.CharsiMin = ParseInt(values[71]);
+				item.CharsiMax = ParseInt(values[72]);
+				item.CharsiMagicMin = ParseInt(values[73]);
+				item.CharsiMagicMax = ParseInt(values[74]);
+				item.CharsiMagicLvl = ParseInt(values[75]);
+				item.GheedMin = ParseInt(values[76]);
+				item.GheedMax = ParseInt(values[77]);
+				item.GheedMagicMin = ParseInt(values[78]);
+				item.GheedMagicMax = ParseInt(values[79]);
+				item.GheedMagicLvl = ParseInt(values[80]);
+				item.AkaraMin = ParseInt(values[81]);
+				item.AkaraMax = ParseInt(values[82]);
+				item.AkaraMagicMin = ParseInt(values[83]);
+				item.AkaraMagicMax = ParseInt(values[84]);
+				item.AkaraMagicLvl = ParseInt(values[85]);
+				item.FaraMin = ParseInt(values[86]);
+				item.FaraMax = ParseInt(values[87]);
+				item.FaraMagicMin = ParseInt(values[88]);
+				item.FaraMagicMax = ParseInt(values[89]);
+				item.FaraMagicLvl = ParseInt(values[90]);
+				item.LysanderMin = ParseInt(values[91]);
+				item.LysanderMax = ParseInt(values[92]);
+				item.LysanderMagicMin = ParseInt(values[93]);
+				item.LysanderMagicMax = ParseInt(values[94]);
+				item.LysanderMagicLvl = ParseInt(values[95]);
+				item.DrognanMin = ParseInt(values[96]);
+				item.DrognanMax = ParseInt(values[97]);
+				item.DrognanMagicMin = ParseInt(values[98]);
+				item.DrognanMagicMax = ParseInt(values[99]);
+				item.DrognanMagicLvl = ParseInt(values[100]);
+				item.HratliMin = ParseInt(values[101]);
+				item.HratliMax = ParseInt(values[102]);
+				item.HratliMagicMin = ParseInt(values[103]);
+				item.HratliMagicMax = ParseInt(values[104]);
+				item.HratliMagicLvl = ParseInt(values[105]);
+				item.AlkorMin = ParseInt(values[106]);
+				item.AlkorMax = ParseInt(values[107]);
+				item.AlkorMagicMin = ParseInt(values[108]);
+				item.AlkorMagicMax = ParseInt(values[109]);
+				item.AlkorMagicLvl = ParseInt(values[110]);
+				item.OrmusMin = ParseInt(values[111]);
+				item.OrmusMax = ParseInt(values[112]);
+				item.OrmusMagicMin = ParseInt(values[113]);
+				item.OrmusMagicMax = ParseInt(values[114]);
+				item.OrmusMagicLvl = ParseInt(values[115]);
+				item.ElzixMin = ParseInt(values[116]);
+				item.ElzixMax = ParseInt(values[117]);
+				item.ElzixMagicMin = ParseInt(values[118]);
+				item.ElzixMagicMax = ParseInt(values[119]);
+				item.ElzixMagicLvl = ParseInt(values[120]);
+				item.AshearaMin = ParseInt(values[121]);
+				item.AshearaMax = ParseInt(values[122]);
+				item.AshearaMagicMin = ParseInt(values[123]);
+				item.AshearaMagicMax = ParseInt(values[124]);
+				item.AshearaMagicLvl = ParseInt(values[125]);
+				item.CainMin = ParseInt(values[126]);
+				item.CainMax = ParseInt(values[127]);
+				item.CainMagicMin = ParseInt(values[128]);
+				item.CainMagicMax = ParseInt(values[129]);
+				item.CainMagicLvl = ParseInt(values[130]);
+				item.HalbuMin = ParseInt(values[131]);
+				item.HalbuMax = ParseInt(values[132]);
+				item.HalbuMagicMin = ParseInt(values[133]);
+				item.HalbuMagicMax = ParseInt(values[134]);
+				item.HalbuMagicLvl = ParseInt(values[135]);
+				item.JamellaMin = ParseInt(values[136]);
+				item.JamellaMax = ParseInt(values[137]);
+				item.JamellaMagicMin = ParseInt(values[138]);
+				item.JamellaMagicMax = ParseInt(values[139]);
+				item.JamellaMagicLvl = ParseInt(values[140]);
+				item.LarzukMin = ParseInt(values[141]);
+				item.LarzukMax = ParseInt(values[142]);
+				item.LarzukMagicMin = ParseInt(values[143]);
+				item.LarzukMagicMax = ParseInt(values[144]);
+				item.LarzukMagicLvl = ParseInt(values[145]);
+				item.MalahMin = ParseInt(values[146]);
+				item.MalahMax = ParseInt(values[147]);
+				item.MalahMagicMin = ParseInt(values[148]);
+				item.MalahMagicMax = ParseInt(values[149]);
+				item.MalahMagicLvl = ParseInt(values[150]);
+				item.AnyaMin = ParseInt(values[151]);
+				item.AnyaMax = ParseInt(values[152]);
+				item.AnyaMagicMin = ParseInt(values[153]);
+				item.AnyaMagicMax = ParseInt(values[154]);
+				item.AnyaMagicLvl = ParseInt(values[155]);
+				item.Transform = ParseInt(values[156]);
+				item.InvTrans = ParseInt(values[157]);
+				item.SkipName = ParseBool(values[158]);
+				item.NightmareUpgrade = values[159];
+				item.HellUpgrade = values[160];
+				item.mindam = ParseInt(values[161]);
+				item.maxdam = ParseInt(values[162]);
+				item.PermStoreItem = ParseBool(values[163]);
+				item.multibuy = ParseBool(values[164]);
+				item.Nameable = ParseBool(values[165]);
+				item.diablocloneweight = ParseInt(values[166]);
+
+				miscs.Add(code, item);
 			}
+
+			Log.Information("Loaded {Count} miscs", miscs.Count);
+		}
+
+		// Implementation for reading uniqueitems.txt (matches the updated Unique class; no bounds checks)
+		public static void ReadUniqueItems(string root)
+		{
+			string[] lines = File.ReadAllLines(root + "\\data\\global\\v99\\excel\\uniqueitems.txt");
+			int headerCount = lines[0].Split('\t').Length;
+
+			if (headerCount != 72)
+			{
+				string msg = $"Unique item data table header count was incorrect ({headerCount}). Expected: 72";
+				InvalidOperationException ex = new(msg);
+				Log.Error(ex, msg);
+				throw ex;
+			}
+
+			for (int i = 1; i < lines.Length; i++)
+			{
+				var values = lines[i].Split('\t');
+				var code = values[10];
+				if (string.IsNullOrWhiteSpace(code)) continue;
+
+				var item = new Unique();
+
+				item.index = values[0];
+				item.ID = ParseInt(values[1]);
+				item.version = ParseInt(values[2]);
+				item.enabled = ParseBool(values[3]);
+				item.firstLadderSeason = ParseInt(values[4]);
+				item.lastLadderSeason = ParseInt(values[5]);
+				item.rarity = ParseInt(values[6]);
+				item.nolimit = values[7];
+				item.lvl = ParseInt(values[8]);
+				item.lvl_req = ParseInt(values[9]);
+				item.code = values[10];
+				item.ItemName = values[11];
+				item.carry1 = ParseInt(values[12]);
+				item.cost_mult = ParseInt(values[13]);
+				item.cost_add = ParseInt(values[14]);
+				item.chrtransform = values[15];
+				item.invtransform = values[16];
+				item.flippyfile = values[17];
+				item.invfile = values[18];
+				item.dropsound = values[19];
+				item.dropsfxframe = ParseInt(values[20]);
+				item.usesound = values[21];
+
+				item.prop1 = values[22];
+				item.par1 = ParseInt(values[23]);
+				item.min1 = ParseInt(values[24]);
+				item.max1 = ParseInt(values[25]);
+
+				item.prop2 = values[26];
+				item.par2 = values[27];
+				item.min2 = ParseInt(values[28]);
+				item.max2 = ParseInt(values[29]);
+
+				item.prop3 = values[30];
+				item.par3 = values[31];
+				item.min3 = ParseInt(values[32]);
+				item.max3 = ParseInt(values[33]);
+
+				item.prop4 = values[34];
+				item.par4 = values[35];
+				item.min4 = ParseInt(values[36]);
+				item.max4 = ParseInt(values[37]);
+
+				item.prop5 = values[38];
+				item.par5 = values[39];
+				item.min5 = ParseInt(values[40]);
+				item.max5 = ParseInt(values[41]);
+
+				item.prop6 = values[42];
+				item.par6 = values[43];
+				item.min6 = ParseInt(values[44]);
+				item.max6 = ParseInt(values[45]);
+
+				item.prop7 = values[46];
+				item.par7 = values[47];
+				item.min7 = ParseInt(values[48]);
+				item.max7 = ParseInt(values[49]);
+
+				item.prop8 = values[50];
+				item.par8 = values[51];
+				item.min8 = ParseInt(values[52]);
+				item.max8 = ParseInt(values[53]);
+
+				item.prop9 = values[54];
+				item.par9 = values[55];
+				item.min9 = ParseInt(values[56]);
+				item.max9 = ParseInt(values[57]);
+
+				item.prop10 = values[58];
+				item.par10 = values[59];
+				item.min10 = ParseInt(values[60]);
+				item.max10 = ParseInt(values[61]);
+
+				item.prop11 = values[62];
+				item.par11 = values[63];
+				item.min11 = ParseInt(values[64]);
+				item.max11 = ParseInt(values[65]);
+
+				item.prop12 = values[66];
+				item.par12 = ParseInt(values[67]);
+				item.min12 = ParseInt(values[68]);
+				item.max12 = ParseInt(values[69]);
+
+				item.diablocloneweight = ParseInt(values[70]);
+
+				uniques.Add(item);
+			}
+
+			Log.Information("Loaded {Count} uniques", uniques.Count);
 		}
 
 		// Implementation for reading sets.txt
 		public static void ReadSetItems(string root)
 		{
-			string[] lines = File.ReadAllLines(root + "\\data\\global\\excel\\setitems.txt");
+			string[] lines = File.ReadAllLines(root + "\\data\\global\\v99\\excel\\setitems.txt");
+			int headerCount = lines[0].Split('\t').Length;
+
+			if (headerCount != 96)
+			{
+				string msg = $"Weapon data table header count was incorrect ({headerCount}). Expected: 96";
+				InvalidOperationException ex = new(msg);
+				Log.Error(ex, msg);
+				throw ex;
+			}
 
 			for (int i = 1; i < lines.Length; i++)
 			{
@@ -795,112 +1018,114 @@ namespace DiabloIISaveLib.Constants.v99
 				var key = values[0];
 				if (string.IsNullOrWhiteSpace(key)) continue;
 
-				setItems.Add(key, new SetItem
-				{
-					index = key,
-					ID = values[1],
-					set = values[2],
-					item = values[3],
-					ItemName = values[4],
-					rarity = ParseInt(values[5]),
-					lvl = ParseInt(values[6]),
-					lvl_req = ParseInt(values[7]),
-					chrtransform = values[8],
-					invtransform = values[9],
-					invfile = values[10],
-					flippyfile = values[11],
-					dropsound = values[12],
-					dropsfxframe = values[13],
-					usesound = values[14],
-					cost_mult = ParseInt(values[15]),
-					cost_add = ParseInt(values[16]),
-					add_func = ParseInt(values[17]),
-					prop1 = values[18],
-					par1 = ParseInt(values[19]),
-					min1 = ParseInt(values[20]),
-					max1 = ParseInt(values[21]),
-					prop2 = values[22],
-					par2 = ParseInt(values[23]),
-					min2 = ParseInt(values[24]),
-					max2 = ParseInt(values[25]),
-					prop3 = values[26],
-					par3 = ParseInt(values[27]),
-					min3 = ParseInt(values[28]),
-					max3 = ParseInt(values[29]),
-					prop4 = values[30],
-					par4 = ParseInt(values[31]),
-					min4 = ParseInt(values[32]),
-					max4 = ParseInt(values[33]),
-					prop5 = values[34],
-					par5 = ParseInt(values[35]),
-					min5 = ParseInt(values[36]),
-					max5 = ParseInt(values[37]),
-					prop6 = values[38],
-					par6 = ParseInt(values[39]),
-					min6 = ParseInt(values[40]),
-					max6 = ParseInt(values[41]),
-					prop7 = values[42],
-					par7 = ParseInt(values[43]),
-					min7 = ParseInt(values[44]),
-					max7 = ParseInt(values[45]),
-					prop8 = values[46],
-					par8 = ParseInt(values[47]),
-					min8 = ParseInt(values[48]),
-					max8 = ParseInt(values[49]),
-					prop9 = values[50],
-					par9 = ParseInt(values[51]),
-					min9 = ParseInt(values[52]),
-					max9 = ParseInt(values[53]),
-					aprop1a = values[54],
-					apar1a = ParseInt(values[55]),
-					amin1a = ParseInt(values[56]),
-					amax1a = ParseInt(values[57]),
-					aprop1b = values[58],
-					apar1b = ParseInt(values[59]),
-					amin1b = ParseInt(values[60]),
-					amax1b = ParseInt(values[61]),
-					aprop2a = values[62],
-					apar2a = ParseInt(values[63]),
-					amin2a = ParseInt(values[64]),
-					amax2a = ParseInt(values[65]),
-					aprop2b = values[66],
-					apar2b = ParseInt(values[67]),
-					amin2b = ParseInt(values[68]),
-					amax2b = ParseInt(values[69]),
-					aprop3a = values[70],
-					apar3a = ParseInt(values[71]),
-					amin3a = ParseInt(values[72]),
-					amax3a = ParseInt(values[73]),
-					aprop3b = values[74],
-					apar3b = ParseInt(values[75]),
-					amin3b = ParseInt(values[76]),
-					amax3b = ParseInt(values[77]),
-					aprop4a = values[78],
-					apar4a = ParseInt(values[79]),
-					amin4a = ParseInt(values[80]),
-					amax4a = ParseInt(values[81]),
-					aprop4b = values[82],
-					apar4b = ParseInt(values[83]),
-					amin4b = ParseInt(values[84]),
-					amax4b = ParseInt(values[85]),
-					aprop5a = values[86],
-					apar5a = ParseInt(values[87]),
-					amin5a = ParseInt(values[88]),
-					amax5a = ParseInt(values[89]),
-					aprop5b = values[90],
-					apar5b = ParseInt(values[91]),
-					amin5b = ParseInt(values[92]),
-					amax5b = ParseInt(values[93]),
-					diablocloneweight = ParseInt(values[94])
-				});
+				var item = new SetItem();
+				item.index = key;
+				item.ID = values[1];
+				item.set = values[2];
+				item.item = values[3];
+				item.ItemName = values[4];
+				item.rarity = ParseInt(values[5]);
+				item.lvl = ParseInt(values[6]);
+				item.lvl_req = ParseInt(values[7]);
+				item.chrtransform = values[8];
+				item.invtransform = values[9];
+				item.invfile = values[10];
+				item.flippyfile = values[11];
+				item.dropsound = values[12];
+				item.dropsfxframe = values[13];
+				item.usesound = values[14];
+				item.cost_mult = ParseInt(values[15]);
+				item.cost_add = ParseInt(values[16]);
+				item.add_func = ParseInt(values[17]);
+				item.prop1 = values[18];
+				item.par1 = ParseInt(values[19]);
+				item.min1 = ParseInt(values[20]);
+				item.max1 = ParseInt(values[21]);
+				item.prop2 = values[22];
+				item.par2 = ParseInt(values[23]);
+				item.min2 = ParseInt(values[24]);
+				item.max2 = ParseInt(values[25]);
+				item.prop3 = values[26];
+				item.par3 = ParseInt(values[27]);
+				item.min3 = ParseInt(values[28]);
+				item.max3 = ParseInt(values[29]);
+				item.prop4 = values[30];
+				item.par4 = ParseInt(values[31]);
+				item.min4 = ParseInt(values[32]);
+				item.max4 = ParseInt(values[33]);
+				item.prop5 = values[34];
+				item.par5 = ParseInt(values[35]);
+				item.min5 = ParseInt(values[36]);
+				item.max5 = ParseInt(values[37]);
+				item.prop6 = values[38];
+				item.par6 = ParseInt(values[39]);
+				item.min6 = ParseInt(values[40]);
+				item.max6 = ParseInt(values[41]);
+				item.prop7 = values[42];
+				item.par7 = ParseInt(values[43]);
+				item.min7 = ParseInt(values[44]);
+				item.max7 = ParseInt(values[45]);
+				item.prop8 = values[46];
+				item.par8 = ParseInt(values[47]);
+				item.min8 = ParseInt(values[48]);
+				item.max8 = ParseInt(values[49]);
+				item.prop9 = values[50];
+				item.par9 = ParseInt(values[51]);
+				item.min9 = ParseInt(values[52]);
+				item.max9 = ParseInt(values[53]);
+				item.aprop1a = values[54];
+				item.apar1a = ParseInt(values[55]);
+				item.amin1a = ParseInt(values[56]);
+				item.amax1a = ParseInt(values[57]);
+				item.aprop1b = values[58];
+				item.apar1b = ParseInt(values[59]);
+				item.amin1b = ParseInt(values[60]);
+				item.amax1b = ParseInt(values[61]);
+				item.aprop2a = values[62];
+				item.apar2a = ParseInt(values[63]);
+				item.amin2a = ParseInt(values[64]);
+				item.amax2a = ParseInt(values[65]);
+				item.aprop2b = values[66];
+				item.apar2b = ParseInt(values[67]);
+				item.amin2b = ParseInt(values[68]);
+				item.amax2b = ParseInt(values[69]);
+				item.aprop3a = values[70];
+				item.apar3a = ParseInt(values[71]);
+				item.amin3a = ParseInt(values[72]);
+				item.amax3a = ParseInt(values[73]);
+				item.aprop3b = values[74];
+				item.apar3b = ParseInt(values[75]);
+				item.amin3b = ParseInt(values[76]);
+				item.amax3b = ParseInt(values[77]);
+				item.aprop4a = values[78];
+				item.apar4a = ParseInt(values[79]);
+				item.amin4a = ParseInt(values[80]);
+				item.amax4a = ParseInt(values[81]);
+				item.aprop4b = values[82];
+				item.apar4b = ParseInt(values[83]);
+				item.amin4b = ParseInt(values[84]);
+				item.amax4b = ParseInt(values[85]);
+				item.aprop5a = values[86];
+				item.apar5a = ParseInt(values[87]);
+				item.amin5a = ParseInt(values[88]);
+				item.amax5a = ParseInt(values[89]);
+				item.aprop5b = values[90];
+				item.apar5b = ParseInt(values[91]);
+				item.amin5b = ParseInt(values[92]);
+				item.amax5b = ParseInt(values[93]);
+				item.diablocloneweight = ParseInt(values[94]);
+
+				setItems.Add(key, item);
 			}
+
+			Log.Information("Loaded {Count} set items", setItems.Count);
 		}
 	}
 	
 	public class ItemStatCost
 	{
 		public string? stat { get; set; }
-		public int? id { get; set; }
+		public ushort? id { get; set; }
 		public bool? send_other { get; set; }
 		public bool? signed { get; set; }
 		public int? send_bits { get; set; }
@@ -1208,7 +1433,6 @@ namespace DiabloIISaveLib.Constants.v99
 		public bool? unique { get; set; }
 		public bool? transparent { get; set; }
 		public int? transtbl { get; set; }
-		public bool? quivered { get; set; }
 		public int? lightradius { get; set; }
 		public int? belt { get; set; }
 		public bool? autobelt { get; set; }
@@ -1238,11 +1462,8 @@ namespace DiabloIISaveLib.Constants.v99
 		public int? spelldesccolor { get; set; }
 		public int? durwarning { get; set; }
 		public int? qntwarning { get; set; }
-		public int? mindam { get; set; }
-		public int? maxdam { get; set; }
-		public int? StrBonus { get; set; }
-		public int? DexBonus { get; set; }
 		public int? gemoffset { get; set; }
+		public string? BetterGem{ get; set; }
 		public int? bitfield1 { get; set; }
 		public int? CharsiMin { get; set; }
 		public int? CharsiMax { get; set; }
@@ -1334,8 +1555,11 @@ namespace DiabloIISaveLib.Constants.v99
 		public bool? SkipName { get; set; }
 		public string? NightmareUpgrade { get; set; }
 		public string? HellUpgrade { get; set; }
-		public bool? Nameable { get; set; }
+		public int? mindam { get; set; }
+		public int? maxdam { get; set; }
 		public bool? PermStoreItem { get; set; }
+		public bool? multibuy { get; set; }
+		public bool? Nameable { get; set; }
 		public int? diablocloneweight { get; set; }
 	}
 
@@ -1519,6 +1743,7 @@ namespace DiabloIISaveLib.Constants.v99
 
 	public class Unique
 	{
+		public string? index { get; set; }
 		public int? ID { get; set; }
 		public int? version { get; set; }
 		public bool? enabled { get; set; }

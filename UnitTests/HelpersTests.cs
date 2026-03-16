@@ -1,10 +1,25 @@
-﻿using Xunit.Sdk;
+﻿using DiabloIISaveLib.Constants.v99;
+using Xunit.Sdk;
 using static DiabloIISaveLib.Helpers;
 
 namespace UnitTests
 {
 	public class HelpersTests
 	{
+		[Theory]
+		[InlineData(null, null)]
+		[InlineData("", null)]
+		[InlineData("0", (ushort)0)]
+		[InlineData("1", (ushort)1)]
+		[InlineData("65,034", null)] //wrong culture
+		[InlineData("65535", (ushort)65535)] //max ushort value
+		[InlineData("-1", null)] //one underflow
+		[InlineData("65536", null)] //one overflow
+		public void Test_ParseUshort(string? s, ushort? expected)
+		{
+			Assert.Equal(expected, ParseUshort(s));
+		}
+
 		[Theory]
 		[InlineData(null, null)]
 		[InlineData("", null)]
@@ -21,6 +36,7 @@ namespace UnitTests
 		{
 			Assert.Equal(expected, ParseInt(s));
 		}
+
 		[Theory]
 		[InlineData(null, null)]
 		[InlineData("", null)]
@@ -34,6 +50,14 @@ namespace UnitTests
 		public void Test_ParseBool(string? s, bool? expected)
 		{
 			Assert.Equal(expected, ParseBool(s));
+		}
+
+		[Theory]
+		[InlineData("..//..//..//..//DiabloIISaveLib")]
+		public void Test_DataPath(string root)
+		{
+			var a = Path.GetFullPath(root);
+			Assert.True(Directory.Exists(root));
 		}
 	}
 }
