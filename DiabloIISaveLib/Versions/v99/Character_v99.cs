@@ -1,5 +1,6 @@
 ﻿using CommunityToolkit.HighPerformance.Buffers;
 using DiabloIISaveLib.IO;
+using Serilog;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -89,13 +90,24 @@ namespace DiabloIISaveLib.Versions.v99
 		public CorpseList_v99 player_corpses { get; set; }
 		public MercenaryItemList? mercenary_items { get; set; }
 		public Golem_v99? golem { get; set; }
-		private Character_v99(IBitReader reader)
-		{
-			header = Header_v99.Read(reader);
+		//public Character_v99()
+		//{
 
+		//}
+		public Character_v99(string path)
+		{
+			if (!File.Exists(path))
+			{
+				throw new InvalidOperationException($"Character save does not exist. {path}");
+			}
+
+			using BitReader reader = new(File.ReadAllBytes(path));
+			header = Header_v99.Read(reader);
 			string headerstr = reader.ReadString(2);
+			Log.Verbose($"Read headerstr ({headerstr}). 16 bits. Position: {reader.Position}");
 
 			active_weapon = reader.ReadUInt32();
+			Log.Verbose($"Read active_weapon ({active_weapon}). 32 bits. Position: {reader.Position}");
 			if (header.version >= 0x69)
 			{
 
@@ -103,20 +115,31 @@ namespace DiabloIISaveLib.Versions.v99
 			else if (header.version >= 0x62)
 			{
 				reader.AdvanceBits(0x10);
+				Log.Verbose($"Skip 10 bits. Position: {reader.Position}");
 			}
 			else
 			{
 				name = reader.ReadString(16);
+				Log.Verbose($"Read name ({name}). {16*8} bits. Position: {reader.Position}");
 			}
 			status = (CharacterFlags)reader.ReadByte();
+			Log.Verbose($"Read status ({status}). 8 bits. Position: {reader.Position}");
 			progression = reader.ReadByte();
+			Log.Verbose($"Read progression ({progression}). 8 bits. Position: {reader.Position}");
 			active_weapon_set = reader.ReadBytes(2); // active_arms
+			Log.Verbose($"Read active_weapon_set ({active_weapon_set}). 16 bits. Position: {reader.Position}");
 			class_id = reader.ReadByte();
+			Log.Verbose($"Read class_id ({class_id}). 8 bits. Position: {reader.Position}");
 			unk0x0029 = reader.ReadBytes(2); // Stats, Skills
+			Log.Verbose($"Read unk0x0029 ({unk0x0029}). 16 bits. Position: {reader.Position}");
 			level = reader.ReadByte();
+			Log.Verbose($"Read level ({level}). 8 bits. Position: {reader.Position}");
 			created = reader.ReadUInt32();
+			Log.Verbose($"Read created ({created}). 32 bits. Position: {reader.Position}");
 			last_played = reader.ReadUInt32();
+			Log.Verbose($"Read last_played ({last_played}). 32 bits. Position: {reader.Position}");
 			play_time = reader.ReadUInt32();
+			Log.Verbose($"Read play_time ({play_time}). 32 bits. Position: {reader.Position}");
 			AssignedSkills = new Skill_v99[16];
 			for (int i = 0; i < AssignedSkills.Length; i++) AssignedSkills[i] = Skill_v99.Read(reader);
 			left_skill = Skill_v99.Read(reader);
@@ -129,12 +152,18 @@ namespace DiabloIISaveLib.Versions.v99
 			mercenary = Mercenary_v99.Read(reader);
 
 			if (header.version > 100)
+			{
 				unk_v105_1 = reader.ReadBytes(45);
+				Log.Verbose($"Read unk_v105_1 ({unk_v105_1}). {45*8} bits. Position: {reader.Position}");
+			}
 
 			preview_data = PreviewData_v99.Read(reader, header.version);
 
 			if (header.version > 100)
+			{
 				unk_v105_2 = reader.ReadBytes(36);
+				Log.Verbose($"Read unk_v105_2 ({unk_v105_2}). {36*8} bits. Position: {reader.Position}");
+			}
 
 			quests = QuestsSection_v99.Read(reader);
 			waypoints = WaypointsSection_v99.Read(reader);
@@ -149,29 +178,47 @@ namespace DiabloIISaveLib.Versions.v99
 			//if (Status.IsExpansion)
 			//{
 			if (reader.Position != reader.Length)
+			{
 				mercenary_items = MercenaryItemList.Read(reader, mercenary, header.version);
+			}
 
 			if (reader.Position != reader.Length)
+			{
 				golem = Golem_v99.Read(reader, header.version);
+			}
 			//}
 		}
 
 		public void Write(IBitWriter writer)
 		{
 			header.Write(writer);
+			Log.Verbose($"Write header ({header}). 128 bits. Position: {writer.Position}");
 			writer.WriteUInt32(active_weapon);
+			Log.Verbose($"Write active_weapon ({active_weapon}). 32 bits. Position: {writer.Position}");
+			int pos = writer.Position;
 			writer.WriteString(name, 16);
+			Log.Verbose($"Write name ({name}). {writer.Position - pos} bits. Position: {writer.Position}");
 			writer.WriteByte((byte)status);
+			Log.Verbose($"Write status ({status}). 8 bits. Position: {writer.Position}");
 			writer.WriteByte(progression);
+			Log.Verbose($"Write progression ({progression}). 8 bits. Position: {writer.Position}");
 			//Unk0x0026
 			writer.WriteBytes(active_weapon_set ?? new byte[2]);
+			Log.Verbose($"Write active_weapon_set ({active_weapon_set}). 16 bits. Position: {writer.Position}");
 			writer.WriteByte(class_id);
+			Log.Verbose($"Write class_id ({class_id}). 8 bits. Position: {writer.Position}");
 			//Unk0x0029
+			pos = writer.Position;
 			writer.WriteBytes(unk0x0029 ?? stackalloc byte[] { 0x10, 0x1e });
+			Log.Verbose($"Write unk0x0029 ({unk0x0029}). {writer.Position - pos} bits. Position: {writer.Position}");
 			writer.WriteByte(level);
+			Log.Verbose($"Write level ({level}). 8 bits. Position: {writer.Position}");
 			writer.WriteUInt32(created);
+			Log.Verbose($"Write created ({created}). 32 bits. Position: {writer.Position}");
 			writer.WriteUInt32(last_played);
+			Log.Verbose($"Write last_played ({last_played}). 32 bits. Position: {writer.Position}");
 			writer.WriteUInt32(play_time);
+			Log.Verbose($"Write play_time ({play_time}). 32 bits. Position: {writer.Position}");
 			for (int i = 0; i < 16; i++)
 			{
 				AssignedSkills[i].Write(writer);
@@ -198,16 +245,6 @@ namespace DiabloIISaveLib.Versions.v99
 			mercenary_items?.Write(writer, mercenary, header.version);
 			golem?.Write(writer, header.version);
 			//}
-		}
-
-		public static Character_v99 Read(ReadOnlySpan<byte> bytes)
-		{
-			using var reader = new BitReader(bytes);
-			var d2s = new Character_v99(reader);
-			int bytesToRead = bytes.Length * 8;
-			int bytesNotRead = bytesToRead - reader.Position;
-			Debug.Assert(bytesNotRead == 0);
-			return d2s;
 		}
 
 		public static MemoryOwner<byte> WritePooled(Character_v99 character)

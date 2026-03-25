@@ -1,4 +1,5 @@
 ﻿using DiabloIISaveLib.IO;
+using Serilog;
 
 namespace DiabloIISaveLib.Versions.v99;
 
@@ -68,6 +69,7 @@ public class Skill_v99
         {
             Id = reader.ReadUInt32()
         };
-        return skill;
+		Log.Verbose($"Read skill.Id ({skill.Id}). 32 bits. Position: {reader.Position}");
+		return skill;
     }
 }

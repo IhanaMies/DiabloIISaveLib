@@ -1,4 +1,5 @@
 ﻿using DiabloIISaveLib.IO;
+using Serilog;
 using System;
 using System.Buffers.Binary;
 using System.Collections.Generic;
@@ -28,13 +29,15 @@ namespace DiabloIISaveLib.Versions.v99
 
 		public static Header_v99 Read(IBitReader reader)
 		{
-			var header = new Header_v99
-			{
-				magic = reader.ReadUInt32(),
-				version = (int)reader.ReadUInt32(),
-				filesize = reader.ReadUInt32(),
-				checksum = reader.ReadUInt32()
-			};
+			var header = new Header_v99();
+			header.magic = reader.ReadUInt32();
+			Log.Verbose($"Read header.magic ({header.magic}). 32 bits. Position: {reader.Position}");
+			header.version = (int)reader.ReadUInt32();
+			Log.Verbose($"Read header.version ({header.version}). 32 bits. Position: {reader.Position}");
+			header.filesize = reader.ReadUInt32();
+			Log.Verbose($"Read header.filesize ({header.filesize}). 32 bits. Position: {reader.Position}");
+			header.checksum = reader.ReadUInt32();
+			Log.Verbose($"Read header.checksum ({header.checksum}). 32 bits. Position: {reader.Position}");
 
 			string magicHex = ((int)(header.magic)).ToString("X");
 

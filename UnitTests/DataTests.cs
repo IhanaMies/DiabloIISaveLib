@@ -150,6 +150,33 @@ namespace UnitTests
 			}
 		}
 
+		[Fact]
+		public void Test_ReadCharacter()
+		{
+			Log.Verbose("Test_ReadAndWrite_AtmaStash_EmptyStash");
+			string character_path = "..//..//..//..//DiabloIISaveLib//Save//v99//Yennefer.d2s";
+
+			try
+			{
+				var character = new Character_v99(character_path);
+				Assert.NotNull(character);
+				Assert.Equal((uint)120928, character.header.checksum);
+				//Assert.Equal(0, stash.item_count);
+
+				//stash.Write(temp_path);
+				//Assert.True(AreEqual(empty_stash, temp_path));
+				//var tempstash = new AtmaStash_v99(temp_path);
+				//Assert.Equal((uint)120928, stash.checkSum);
+				//Assert.NotNull(tempstash);
+				//Assert.Equal(0, tempstash.item_count);
+			}
+			finally
+			{
+				if (File.Exists(temp_path))
+					File.Delete(temp_path);
+			}
+		}
+
 		public void Dispose()
 		{
 			if (File.Exists(temp_path))

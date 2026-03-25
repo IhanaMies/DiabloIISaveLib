@@ -6,12 +6,6 @@ using System.Text;
 
 namespace DiabloIISaveLib.Versions.v99
 {
-	public class SaveByteCheckContainer
-	{
-		public List<int> r_bytes = new();
-		public List<int> w_bytes = new();
-	}
-
 	public class AtmaStash_v99
 	{
 		public string header { get; }
@@ -29,7 +23,7 @@ namespace DiabloIISaveLib.Versions.v99
 			using var reader = new BitReader(bytes);
 
 			header = Encoding.Default.GetString(reader.ReadBytes(3));
-			Log.Verbose($"Read header. 24 bits. Position: {reader.Position}");
+			Log.Verbose($"Read header ({header}). 24 bits. Position: {reader.Position}");
 
 			if (header != "D2X")
 			{
