@@ -6,9 +6,9 @@ using System.Collections.Generic;
 using System.Reflection.PortableExecutable;
 using System.Text;
 
-namespace DiabloIISaveLib.Data
+namespace DiabloIISaveLib.Types
 {
-	public class Header_v99
+	public class Header
 	{
 		//0x0000
 		public uint? magic { get; set; }
@@ -27,9 +27,9 @@ namespace DiabloIISaveLib.Data
 			writer.WriteUInt32(checksum);
 		}
 
-		public static Header_v99 Read(IBitReader reader)
+		public static Header Read(IBitReader reader)
 		{
-			var header = new Header_v99();
+			var header = new Header();
 			header.magic = reader.ReadUInt32();
 			Log.Verbose($"Read header.magic ({header.magic}). 32 bits. Position: {reader.Position}");
 			header.version = (int)reader.ReadUInt32();

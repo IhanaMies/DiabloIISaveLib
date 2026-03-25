@@ -1,8 +1,8 @@
 ﻿using DiabloIISaveLib.IO;
 
-namespace DiabloIISaveLib.Data;
+namespace DiabloIISaveLib.Types;
 
-public sealed class Mercenary_v99
+public sealed class Mercenary
 {
     public uint Flags { get; set; }
     public uint Id { get; set; }
@@ -19,9 +19,9 @@ public sealed class Mercenary_v99
         writer.WriteUInt32(Experience);
     }
 
-    public static Mercenary_v99 Read(IBitReader reader)
+    public static Mercenary Read(IBitReader reader)
     {
-        var mercenary = new Mercenary_v99
+        var mercenary = new Mercenary
         {
             Flags = reader.ReadUInt32(),
             Id = reader.ReadUInt32(),
@@ -36,9 +36,9 @@ public sealed class Mercenary_v99
 public sealed class MercenaryItemList : IDisposable
 {
     public ushort? header { get; set; }
-    public ItemList_v99? item_list { get; private set; }
+    public ItemList? item_list { get; private set; }
 
-    public void Write(IBitWriter writer, Mercenary_v99 mercenary, int version)
+    public void Write(IBitWriter writer, Mercenary mercenary, int version)
     {
         writer.WriteUInt16(header ?? 0x666A);
         if (mercenary.Id != 0)
@@ -47,7 +47,7 @@ public sealed class MercenaryItemList : IDisposable
         }
     }
 
-    public static MercenaryItemList Read(IBitReader reader, Mercenary_v99 mercenary, int version)
+    public static MercenaryItemList Read(IBitReader reader, Mercenary mercenary, int version)
     {
         var mercenaryItemList = new MercenaryItemList
         {
@@ -55,7 +55,7 @@ public sealed class MercenaryItemList : IDisposable
         };
         if (mercenary.Id != 0)
         {
-            mercenaryItemList.item_list = ItemList_v99.Read(reader, version);
+            mercenaryItemList.item_list = ItemList.Read(reader, version);
         }
         return mercenaryItemList;
     }

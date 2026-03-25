@@ -1,11 +1,11 @@
 ﻿using DiabloIISaveLib.IO;
 using System.Text;
-using static DiabloIISaveLib.Data.Item_v99;
+using static DiabloIISaveLib.Types.Item;
 
-namespace DiabloIISaveLib.Data;
+namespace DiabloIISaveLib.Types;
 
 // 4+1+1+2+4
-public class PreviewItem_v99
+public class PreviewItem
 {
     public uint Code { get; set; }
     public byte Transform { get; set; }
@@ -14,9 +14,9 @@ public class PreviewItem_v99
     public ItemFlags Flags { get; set; }
     public string CodeString => Encoding.ASCII.GetString(BitConverter.GetBytes(Code)).TrimEnd(['\0', ' ']);
 
-    public static PreviewItem_v99 Read(IBitReader reader)
+    public static PreviewItem Read(IBitReader reader)
     {
-        var previewItem = new PreviewItem_v99
+        var previewItem = new PreviewItem
         {
             Code = reader.ReadUInt32(),
             Transform = reader.ReadByte(),
@@ -39,7 +39,7 @@ public class PreviewItem_v99
 }
 
 // 8+8+4+4+4+4*12+64
-public class PreviewData_v99
+public class PreviewData
 {
     public ulong ExpansionSaveTime { get; set; }
     public ulong ClassicSaveTime { get; set; }
@@ -49,16 +49,16 @@ public class PreviewData_v99
     public byte GameVersion { get; set; }
     public byte Unk1 { get; set; }
     public byte Unk2 { get; set; }
-    public required PreviewItem_v99 LeftHand { get; set; }
-    public required PreviewItem_v99 RightHand { get; set; }
-    public required PreviewItem_v99 Torso { get; set; }
-	public required PreviewItem_v99 Head { get; set; }
+    public required PreviewItem LeftHand { get; set; }
+    public required PreviewItem RightHand { get; set; }
+    public required PreviewItem Torso { get; set; }
+	public required PreviewItem Head { get; set; }
 	public required string Name { get; set; }
     public uint Unk3 { get; set; }
 
-    public static PreviewData_v99 Read(IBitReader reader, int version)
+    public static PreviewData Read(IBitReader reader, int version)
     {
-        var previewData = new PreviewData_v99
+        var previewData = new PreviewData
         {
             ExpansionSaveTime = reader.ReadUInt64(),
             ClassicSaveTime = reader.ReadUInt64(),
@@ -68,10 +68,10 @@ public class PreviewData_v99
             GameVersion = version > 100 ? reader.ReadByte() : (byte)0,
             Unk1 = version > 100 ? reader.ReadByte() : (byte)0,
             Unk2 = version > 100 ? reader.ReadByte() : (byte)0,
-            LeftHand = PreviewItem_v99.Read(reader),
-            RightHand = PreviewItem_v99.Read(reader),
-            Torso = PreviewItem_v99.Read(reader),
-            Head = PreviewItem_v99.Read(reader),
+            LeftHand = PreviewItem.Read(reader),
+            RightHand = PreviewItem.Read(reader),
+            Torso = PreviewItem.Read(reader),
+            Head = PreviewItem.Read(reader),
             Name = reader.ReadString(64),
             Unk3 = reader.ReadUInt32(),
         };

@@ -1,18 +1,18 @@
 ﻿using DiabloIISaveLib.IO;
 
-namespace DiabloIISaveLib.Data;
+namespace DiabloIISaveLib.Types;
 
 public record Stat(int Layer, long Value);
 
 //variable size. depends on # of attributes
-public class Attributes_v99
+public class Attributes
 {
     public ushort? header { get; set; }
     public Dictionary<ushort, Stat> stats { get; } = new Dictionary<ushort, Stat>();
 
-    public static Attributes_v99 Read(IBitReader reader)
+    public static Attributes Read(IBitReader reader)
     {
-        var attributes = new Attributes_v99
+        var attributes = new Attributes
         {
             header = reader.ReadUInt16()
         };

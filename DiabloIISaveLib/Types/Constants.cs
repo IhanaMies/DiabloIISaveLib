@@ -6,7 +6,7 @@ using DiabloIISaveLib.Huffman;
 using Serilog;
 using static DiabloIISaveLib.Helpers;
 
-namespace DiabloIISaveLib
+namespace DiabloIISaveLib.Types
 {
 	public static class Constants
 	{

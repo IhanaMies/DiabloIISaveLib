@@ -1,18 +1,18 @@
 ﻿using DiabloIISaveLib.IO;
 
-namespace DiabloIISaveLib.Data;
+namespace DiabloIISaveLib.Types;
 
-public sealed class NPCDialogSection_v99
+public sealed class NPCDialogSection
 {
-    private readonly NPCDialogDifficulty_v99[] _difficulties = new NPCDialogDifficulty_v99[3];
+    private readonly NPCDialogDifficulty[] _difficulties = new NPCDialogDifficulty[3];
 
     //0x02c9 [npc header identifier  = 0x01, 0x77 ".w"]
     public ushort? Header { get; set; }
     //0x02ca [npc header length = 0x34]
     public ushort? Length { get; set; }
-    public NPCDialogDifficulty_v99 Normal => _difficulties[0];
-    public NPCDialogDifficulty_v99 Nightmare => _difficulties[1];
-    public NPCDialogDifficulty_v99 Hell => _difficulties[2];
+    public NPCDialogDifficulty Normal => _difficulties[0];
+    public NPCDialogDifficulty Nightmare => _difficulties[1];
+    public NPCDialogDifficulty Hell => _difficulties[2];
 
     public void Write(IBitWriter writer)
     {
@@ -30,9 +30,9 @@ public sealed class NPCDialogSection_v99
         writer.SeekBits(start + (0x30 * 8));
     }
 
-    public static NPCDialogSection_v99 Read(IBitReader reader)
+    public static NPCDialogSection Read(IBitReader reader)
     {
-        var npcDialogSection = new NPCDialogSection_v99
+        var npcDialogSection = new NPCDialogSection
         {
             Header = reader.ReadUInt16(),
             Length = reader.ReadUInt16()
@@ -43,7 +43,7 @@ public sealed class NPCDialogSection_v99
         for (int i = 0; i < npcDialogSection._difficulties.Length; i++)
         {
             reader.SeekBits(start + (i * 0x8 * 8));
-            npcDialogSection._difficulties[i] = NPCDialogDifficulty_v99.Read(reader);
+            npcDialogSection._difficulties[i] = NPCDialogDifficulty.Read(reader);
         }
 
         reader.SeekBits(start + (0x30 * 8));
@@ -52,14 +52,14 @@ public sealed class NPCDialogSection_v99
     }
 
     [Obsolete("Try the direct-read overload!")]
-    public static NPCDialogSection_v99 Read(ReadOnlySpan<byte> bytes)
+    public static NPCDialogSection Read(ReadOnlySpan<byte> bytes)
     {
         using var reader = new BitReader(bytes);
         return Read(reader);
     }
 
     [Obsolete("Try the non-allocating overload!")]
-    public static byte[] Write(NPCDialogSection_v99 npcDialogSection)
+    public static byte[] Write(NPCDialogSection npcDialogSection)
     {
         using var writer = new BitWriter();
         npcDialogSection.Write(writer);
@@ -68,11 +68,11 @@ public sealed class NPCDialogSection_v99
 }
 
 //8 bytes per difficulty for Intro for each Difficulty followed by 8 bytes per difficulty for Congrats for each difficulty
-public sealed class NPCDialogDifficulty_v99
+public sealed class NPCDialogDifficulty
 {
     private readonly NPCDialogData[] _dialogs = new NPCDialogData[64];
 
-    private NPCDialogDifficulty_v99() { }
+    private NPCDialogDifficulty() { }
 
     public NPCDialogData WarrivActII => _dialogs[0];
     public NPCDialogData Unk0x0001 => _dialogs[1];
@@ -134,9 +134,9 @@ public sealed class NPCDialogDifficulty_v99
         }
     }
 
-    internal static NPCDialogDifficulty_v99 Read(IBitReader reader)
+    internal static NPCDialogDifficulty Read(IBitReader reader)
     {
-        var output = new NPCDialogDifficulty_v99();
+        var output = new NPCDialogDifficulty();
 
         int position = reader.Position;
 

@@ -1,9 +1,9 @@
 ﻿using DiabloIISaveLib.IO;
 using System.Diagnostics.CodeAnalysis;
 
-namespace DiabloIISaveLib.Data;
+namespace DiabloIISaveLib.Types;
 
-public class Locations_v99
+public class Locations
 {
     private readonly Location[] _locations = new Location[3];
 
@@ -19,9 +19,9 @@ public class Locations_v99
         }
     }
 
-    public static Locations_v99 Read(IBitReader reader)
+    public static Locations Read(IBitReader reader)
     {
-        var locations = new Locations_v99();
+        var locations = new Locations();
         var places = locations._locations;
         for (int i = 0; i < places.Length; i++)
         {
@@ -31,14 +31,14 @@ public class Locations_v99
     }
 
     [Obsolete("Try the direct-read overload!")]
-    public static Locations_v99 Read(ReadOnlySpan<byte> bytes)
+    public static Locations Read(ReadOnlySpan<byte> bytes)
     {
         using var reader = new BitReader(bytes);
         return Read(reader);
     }
 
     [Obsolete("Try the non-allocating overload!")]
-    public static byte[] Write(Locations_v99 locations)
+    public static byte[] Write(Locations locations)
     {
         using var writer = new BitWriter();
         locations.Write(writer);

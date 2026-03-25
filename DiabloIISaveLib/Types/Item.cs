@@ -7,16 +7,16 @@ using System.Diagnostics;
 using System.Reflection.PortableExecutable;
 using System.Text;
 
-namespace DiabloIISaveLib.Data
+namespace DiabloIISaveLib.Types
 {
-	public class Ear_v99 : Item_v99
+	public class Ear : Item
 	{
 		public byte class_of_ear { get; set; }
 		public byte level_of_ear { get; set; }
 		public string? name_of_ear { get; set; }
 	}
 
-	public class Item_v99
+	public class Item
 	{
 		public enum ItemType
 		{
@@ -113,7 +113,7 @@ namespace DiabloIISaveLib.Data
 		public byte total_nr_of_sockets { get; private set; }
 		public byte set_item_mask { get; private set; } = 0;
 		public List<List<ItemModifier>> modifiers { get; private set; } = new();
-		public List<Item_v99> socketed_items { get; private set; } = new();
+		public List<Item> socketed_items { get; private set; } = new();
 		public bool yes_bit { get; private set; }
 		public byte yes_bit_bits { get; private set; }
 		public bool yes_102_103 { get; private set; }
@@ -162,7 +162,7 @@ namespace DiabloIISaveLib.Data
 
 			if ((flags & ItemFlags.IsEar) != 0)
 			{
-				Ear_v99 ear = (Ear_v99)this;
+				Ear ear = (Ear)this;
 				writer.WriteByte(ear.class_of_ear, 3);
 				Log.Verbose($"Write ear class. 3 bits. Position: {writer.Position}");
 				writer.WriteByte(ear.level_of_ear, 3);
@@ -380,7 +380,7 @@ namespace DiabloIISaveLib.Data
 			Log.Verbose($"Align writer from {old_pos} to {writer.Position}");
 
 			Log.Verbose("Read socketed_items");
-			foreach (Item_v99 socketed_item in socketed_items)
+			foreach (Item socketed_item in socketed_items)
 			{
 				socketed_item.Write(writer, version);
 			}
@@ -473,9 +473,9 @@ namespace DiabloIISaveLib.Data
 			writer.WriteByte(0, numBits);
 		}
 
-		private static Item_v99 ReadCompact(IBitReader reader, int version)
+		private static Item ReadCompact(IBitReader reader, int version)
 		{
-			Item_v99 item = new();
+			Item item = new();
 			item.flags = (ItemFlags)reader.ReadUInt32();
 			Log.Verbose($"Read flags. 32 bits. Position: {reader.Position}. {item.flags}");
 
@@ -498,7 +498,7 @@ namespace DiabloIISaveLib.Data
 
 			if ((item.flags & ItemFlags.IsEar) != 0)
 			{
-				Ear_v99 ear = (Ear_v99)item;
+				Ear ear = (Ear)item;
 				ear.class_of_ear = reader.ReadByte(3);
 				Log.Verbose($"Read ear class. 3 bits. Position: {reader.Position}");
 				ear.level_of_ear = reader.ReadByte(7);
@@ -537,7 +537,7 @@ namespace DiabloIISaveLib.Data
 			return item;
 		}
 
-		private static Item_v99 ReadComplete(IBitReader reader, Item_v99 item)
+		private static Item ReadComplete(IBitReader reader, Item item)
 		{
 			item.id = reader.ReadUInt32(32);
 			Log.Verbose($"Read id. 32 bits. Position: {reader.Position}");
@@ -800,7 +800,7 @@ namespace DiabloIISaveLib.Data
 	};
 
 		//not sure wth this is supposed to present
-		private static void ReadExtraData(IBitReader reader, Item_v99 item, int version)
+		private static void ReadExtraData(IBitReader reader, Item item, int version)
 		{
 			if (version <= 99)
 				return;
@@ -867,9 +867,9 @@ namespace DiabloIISaveLib.Data
 			return Encoding.ASCII.GetString(codeBuffer).Replace(" ", "");
 		}
 
-		public static Item_v99 Read(IBitReader reader, int version)
+		public static Item Read(IBitReader reader, int version)
 		{
-			Item_v99? item = null;
+			Item? item = null;
 
 			try
 			{
@@ -1083,16 +1083,16 @@ namespace DiabloIISaveLib.Data
 		Other = 0x04
 	}
 
-	public sealed class ItemList_v99
+	public sealed class ItemList
 	{
-		private ItemList_v99(ushort header, ushort count)
+		private ItemList(ushort header, ushort count)
 		{
 			this.header = header;
-			items = new List<Item_v99>(count);
+			items = new List<Item>(count);
 		}
 
 		public ushort? header { get; set; }
-		public List<Item_v99> items { get; }
+		public List<Item> items { get; }
 
 		public void Write(IBitWriter writer, int version, bool write_item_list_header = true)
 		{
@@ -1112,28 +1112,28 @@ namespace DiabloIISaveLib.Data
 			}
 		}
 
-		public static ItemList_v99 Read(IBitReader reader, int version)
+		public static ItemList Read(IBitReader reader, int version)
 		{
 			ushort header = reader.ReadUInt16();
 			Log.Verbose($"Read header. 16 bits. Position: {reader.Position}");
 			ushort items = reader.ReadUInt16();
 			Log.Verbose($"Read item_count. 16 bits. Position: {reader.Position}");
-			var itemList = new ItemList_v99(
+			var itemList = new ItemList(
 				header: header,
 				count: items
 			);
 
 			for (int i = 0; i < items; i++)
 			{
-				itemList.items.Add(Item_v99.Read(reader, version));
+				itemList.items.Add(Item.Read(reader, version));
 			}
 
 			return itemList;
 		}
 
-		public static ItemList_v99 Read(IBitReader reader, int version, ushort items)
+		public static ItemList Read(IBitReader reader, int version, ushort items)
 		{
-			var itemList = new ItemList_v99(
+			var itemList = new ItemList(
 				header: 99,
 				count: items
 			);
@@ -1142,7 +1142,7 @@ namespace DiabloIISaveLib.Data
 			{
 				int pos = reader.Position;
 				Log.Verbose($"Read item number {i}");
-				itemList.items.Add(Item_v99.Read(reader, version));
+				itemList.items.Add(Item.Read(reader, version));
 			}
 
 			return itemList;

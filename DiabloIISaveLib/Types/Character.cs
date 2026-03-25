@@ -10,7 +10,7 @@ using System.Text;
 using System.Text.Json.Serialization;
 using System.Xml.Linq;
 
-namespace DiabloIISaveLib.Data
+namespace DiabloIISaveLib.Types
 {
 
 	[Flags]
@@ -27,10 +27,10 @@ namespace DiabloIISaveLib.Data
 		NeedsRenaming = 0x80
 	}
 
-	public class Character_v99
+	public class Character
 	{
 		//0x0000
-		public Header_v99 header { get; set; }
+		public Header header { get; set; }
 		//0x0010
 		public uint active_weapon { get; set; }
 		//0x0014 sizeof(16)
@@ -56,45 +56,45 @@ namespace DiabloIISaveLib.Data
 		//0x0034 [unk = 0xff, 0xff, 0xff, 0xff]
 		public uint play_time { get; set; }
 		//0x0038
-		public Skill_v99[] AssignedSkills { get; set; }
+		public Skill[] AssignedSkills { get; set; }
 		//0x0078
-		public Skill_v99 left_skill { get; set; }
+		public Skill left_skill { get; set; }
 		//0x007c
-		public Skill_v99 right_skill { get; set; }
+		public Skill right_skill { get; set; }
 		//0x0080
-		public Skill_v99 left_swap_skill { get; set; }
+		public Skill left_swap_skill { get; set; }
 		//0x0084
-		public Skill_v99 right_swap_skill { get; set; }
+		public Skill right_swap_skill { get; set; }
 		//0x0088 [char menu appearance]
-		public Appearances_v99 appearances { get; set; }
+		public Appearances appearances { get; set; }
 		//0x00a8
-		public Locations_v99 location { get; set; }
+		public Locations location { get; set; }
 		//0x00ab
 		public uint map_id { get; set; }
 		//0x00b1
-		public Mercenary_v99 mercenary { get; set; }
+		public Mercenary mercenary { get; set; }
 		public byte[]? unk_v105_1 { get; set; }
 		//0x00bf
-		public PreviewData_v99 preview_data { get; set; }
+		public PreviewData preview_data { get; set; }
 		public byte[]? unk_v105_2 { get; set; }
 		//0x014f
-		public QuestsSection_v99 quests { get; set; }
+		public QuestsSection quests { get; set; }
 		//0x0279
-		public WaypointsSection_v99 waypoints { get; set; }
+		public WaypointsSection waypoints { get; set; }
 		//0x02c9
-		public NPCDialogSection_v99 npc_dialog { get; set; }
+		public NPCDialogSection npc_dialog { get; set; }
 		//0x2fc
-		public Attributes_v99 attributes { get; set; }
-		public ClassSkills_v99 class_skills { get; set; }
-		public ItemList_v99 item_list { get; set; }
-		public CorpseList_v99 player_corpses { get; set; }
+		public Attributes attributes { get; set; }
+		public ClassSkills class_skills { get; set; }
+		public ItemList item_list { get; set; }
+		public CorpseList player_corpses { get; set; }
 		public MercenaryItemList? mercenary_items { get; set; }
-		public Golem_v99? golem { get; set; }
-		//public Character_v99()
+		public Golem? golem { get; set; }
+		//public Character()
 		//{
 
 		//}
-		public Character_v99(string path)
+		public Character(string path)
 		{
 			if (!File.Exists(path))
 			{
@@ -102,7 +102,7 @@ namespace DiabloIISaveLib.Data
 			}
 
 			using BitReader reader = new(File.ReadAllBytes(path));
-			header = Header_v99.Read(reader);
+			header = Header.Read(reader);
 			string headerstr = reader.ReadString(2);
 			Log.Verbose($"Read headerstr ({headerstr}). 16 bits. Position: {reader.Position}");
 
@@ -140,16 +140,16 @@ namespace DiabloIISaveLib.Data
 			Log.Verbose($"Read last_played ({last_played}). 32 bits. Position: {reader.Position}");
 			play_time = reader.ReadUInt32();
 			Log.Verbose($"Read play_time ({play_time}). 32 bits. Position: {reader.Position}");
-			AssignedSkills = new Skill_v99[16];
-			for (int i = 0; i < AssignedSkills.Length; i++) AssignedSkills[i] = Skill_v99.Read(reader);
-			left_skill = Skill_v99.Read(reader);
-			right_skill = Skill_v99.Read(reader);
-			left_swap_skill = Skill_v99.Read(reader);
-			right_swap_skill = Skill_v99.Read(reader);
-			appearances = Appearances_v99.Read(reader);
-			location = Locations_v99.Read(reader);
+			AssignedSkills = new Skill[16];
+			for (int i = 0; i < AssignedSkills.Length; i++) AssignedSkills[i] = Skill.Read(reader);
+			left_skill = Skill.Read(reader);
+			right_skill = Skill.Read(reader);
+			left_swap_skill = Skill.Read(reader);
+			right_swap_skill = Skill.Read(reader);
+			appearances = Appearances.Read(reader);
+			location = Locations.Read(reader);
 			map_id = reader.ReadUInt32();
-			mercenary = Mercenary_v99.Read(reader);
+			mercenary = Mercenary.Read(reader);
 
 			if (header.version > 100)
 			{
@@ -157,7 +157,7 @@ namespace DiabloIISaveLib.Data
 				Log.Verbose($"Read unk_v105_1 ({unk_v105_1}). {45*8} bits. Position: {reader.Position}");
 			}
 
-			preview_data = PreviewData_v99.Read(reader, header.version);
+			preview_data = PreviewData.Read(reader, header.version);
 
 			if (header.version > 100)
 			{
@@ -165,14 +165,14 @@ namespace DiabloIISaveLib.Data
 				Log.Verbose($"Read unk_v105_2 ({unk_v105_2}). {36*8} bits. Position: {reader.Position}");
 			}
 
-			quests = QuestsSection_v99.Read(reader);
-			waypoints = WaypointsSection_v99.Read(reader);
-			npc_dialog = NPCDialogSection_v99.Read(reader);
-			attributes = Attributes_v99.Read(reader);
+			quests = QuestsSection.Read(reader);
+			waypoints = WaypointsSection.Read(reader);
+			npc_dialog = NPCDialogSection.Read(reader);
+			attributes = Attributes.Read(reader);
 
-			class_skills = ClassSkills_v99.Read(reader, class_id);
-			item_list = ItemList_v99.Read(reader, header.version);
-			player_corpses = CorpseList_v99.Read(reader, header.version);
+			class_skills = ClassSkills.Read(reader, class_id);
+			item_list = ItemList.Read(reader, header.version);
+			player_corpses = CorpseList.Read(reader, header.version);
 
 			// this expansion check is likely correct, but not for my use case
 			//if (Status.IsExpansion)
@@ -184,7 +184,7 @@ namespace DiabloIISaveLib.Data
 
 			if (reader.Position != reader.Length)
 			{
-				golem = Golem_v99.Read(reader, header.version);
+				golem = Golem.Read(reader, header.version);
 			}
 			//}
 		}
@@ -247,21 +247,21 @@ namespace DiabloIISaveLib.Data
 			//}
 		}
 
-		public static MemoryOwner<byte> WritePooled(Character_v99 character)
+		public static MemoryOwner<byte> WritePooled(Character character)
 		{
 			using var writer = new BitWriter();
 			character.Write(writer);
 			var bytes = writer.ToPooledArray();
-			Header_v99.Fix(bytes.Span);
+			Header.Fix(bytes.Span);
 			return bytes;
 		}
 
-		public static byte[] Write(Character_v99 character)
+		public static byte[] Write(Character character)
 		{
 			using var writer = new BitWriter();
 			character.Write(writer);
 			byte[] bytes = writer.ToArray();
-			Header_v99.Fix(bytes);
+			Header.Fix(bytes);
 			return bytes;
 		}
 

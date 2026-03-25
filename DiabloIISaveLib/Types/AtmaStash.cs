@@ -4,17 +4,17 @@ using System.Buffers.Binary;
 using System.Reflection.PortableExecutable;
 using System.Text;
 
-namespace DiabloIISaveLib.Data
+namespace DiabloIISaveLib.Types
 {
-	public class AtmaStash_v99
+	public class AtmaStash
 	{
 		public string header { get; }
 		public ushort item_count { get; }
 		public ushort version { get; }
 		public uint checkSum { get; }
-		public ItemList_v99 item_list { get; set; }
+		public ItemList item_list { get; set; }
 
-		public AtmaStash_v99(string path)
+		public AtmaStash(string path)
 		{
 			if (!Path.Exists(path))
 				throw new FileNotFoundException($"Atma stash does not exist ({path})");
@@ -39,7 +39,7 @@ namespace DiabloIISaveLib.Data
 			byte[] checksum_bytes = BitConverter.GetBytes(checkSum);
 			Log.Verbose($"check_sum bytes [{checksum_bytes[0]}, {checksum_bytes[1]}, {checksum_bytes[2]}, {checksum_bytes[3]}]. 32 bits. Position: {reader.Position}");
 
-			item_list = ItemList_v99.Read(reader, version, item_count);
+			item_list = ItemList.Read(reader, version, item_count);
 		}
 
 		public bool Write(string path)

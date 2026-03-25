@@ -1,10 +1,10 @@
 ﻿using DiabloIISaveLib.IO;
 
-namespace DiabloIISaveLib.Data;
+namespace DiabloIISaveLib.Types;
 
-public sealed class WaypointsSection_v99
+public sealed class WaypointsSection
 {
-    private readonly WaypointsDifficulty_v99[] _difficulties = new WaypointsDifficulty_v99[3];
+    private readonly WaypointsDifficulty[] _difficulties = new WaypointsDifficulty[3];
 
     //0x0279 [waypoint data = 0x57, 0x53 "WS"]
     public ushort? Header { get; set; }
@@ -12,10 +12,10 @@ public sealed class WaypointsSection_v99
     public uint? Version { get; set; }
     //0x027f [waypoint header length = 0x50, 0x0]
     public ushort? Length { get; set; }
-    public WaypointsDifficulty_v99 Normal => _difficulties[0];
-    public WaypointsDifficulty_v99 Nightmare => _difficulties[1];
-    public WaypointsDifficulty_v99 Hell => _difficulties[2];
-    public WaypointsDifficulty_v99[] Difficulties => _difficulties;
+    public WaypointsDifficulty Normal => _difficulties[0];
+    public WaypointsDifficulty Nightmare => _difficulties[1];
+    public WaypointsDifficulty Hell => _difficulties[2];
+    public WaypointsDifficulty[] Difficulties => _difficulties;
 
     public void Write(IBitWriter writer)
     {
@@ -29,9 +29,9 @@ public sealed class WaypointsSection_v99
         }
     }
 
-    public static WaypointsSection_v99 Read(IBitReader reader)
+    public static WaypointsSection Read(IBitReader reader)
     {
-        var waypointsSection = new WaypointsSection_v99
+        var waypointsSection = new WaypointsSection
         {
             Header = reader.ReadUInt16(),
             Version = reader.ReadUInt32(),
@@ -40,25 +40,25 @@ public sealed class WaypointsSection_v99
 
         for (int i = 0; i < waypointsSection._difficulties.Length; i++)
         {
-            waypointsSection._difficulties[i] = WaypointsDifficulty_v99.Read(reader);
+            waypointsSection._difficulties[i] = WaypointsDifficulty.Read(reader);
         }
 
         return waypointsSection;
     }
 }
 
-public sealed class WaypointsDifficulty_v99
+public sealed class WaypointsDifficulty
 {
-    private readonly Waypoints_v99[] _acts = new Waypoints_v99[5];
+    private readonly Waypoints[] _acts = new Waypoints[5];
     private static readonly int[] _numBits = [9, 9, 9, 3, 9];
 
-    private WaypointsDifficulty_v99(IBitReader reader)
+    private WaypointsDifficulty(IBitReader reader)
     {
         Header = reader.ReadUInt16();
 
         for (int i = 0; i < _acts.Length; i++)
         {
-            _acts[i] = Waypoints_v99.Read(reader, _numBits[i]);
+            _acts[i] = Waypoints.Read(reader, _numBits[i]);
         }
 
         reader.ReadInt32(9);
@@ -68,7 +68,7 @@ public sealed class WaypointsDifficulty_v99
 
     //[0x02, 0x01]
     public ushort? Header { get; set; }
-    public Waypoints_v99[] Acts => _acts;
+    public Waypoints[] Acts => _acts;
 
     public void Write(IBitWriter writer)
     {
@@ -86,9 +86,9 @@ public sealed class WaypointsDifficulty_v99
         writer.WriteBytes(padding);
     }
 
-    public static WaypointsDifficulty_v99 Read(IBitReader reader)
+    public static WaypointsDifficulty Read(IBitReader reader)
     {
-        var waypointsDifficulty = new WaypointsDifficulty_v99(reader);
+        var waypointsDifficulty = new WaypointsDifficulty(reader);
         return waypointsDifficulty;
     }
 }
@@ -183,65 +183,65 @@ public enum ActVWaypoints : ushort
     All = 0x1FF
 }
 
-public struct Waypoints_v99
+public struct Waypoints
 {
     private WaypointFlags _flags;
 
-    private Waypoints_v99(WaypointFlags flags) => _flags = flags;
-    private Waypoints_v99(ushort flags) => _flags = (WaypointFlags)flags;
+    private Waypoints(WaypointFlags flags) => _flags = flags;
+    private Waypoints(ushort flags) => _flags = (WaypointFlags)flags;
 
     public ushort Value => (ushort)_flags;
 
     // Implicit conversions FROM act enums
-    public static implicit operator Waypoints_v99(ActIWaypoints wp) => new((WaypointFlags)wp);
-    public static implicit operator Waypoints_v99(ActIIWaypoints wp) => new((WaypointFlags)wp);
-    public static implicit operator Waypoints_v99(ActIIIWaypoints wp) => new((WaypointFlags)wp);
-    public static implicit operator Waypoints_v99(ActIVWaypoints wp) => new((WaypointFlags)wp);
-    public static implicit operator Waypoints_v99(ActVWaypoints wp) => new((WaypointFlags)wp);
-    public static implicit operator Waypoints_v99(WaypointFlags wp) => new(wp);
+    public static implicit operator Waypoints(ActIWaypoints wp) => new((WaypointFlags)wp);
+    public static implicit operator Waypoints(ActIIWaypoints wp) => new((WaypointFlags)wp);
+    public static implicit operator Waypoints(ActIIIWaypoints wp) => new((WaypointFlags)wp);
+    public static implicit operator Waypoints(ActIVWaypoints wp) => new((WaypointFlags)wp);
+    public static implicit operator Waypoints(ActVWaypoints wp) => new((WaypointFlags)wp);
+    public static implicit operator Waypoints(WaypointFlags wp) => new(wp);
 
     // Implicit conversions TO
-    public static implicit operator WaypointFlags(Waypoints_v99 wp) => wp._flags;
+    public static implicit operator WaypointFlags(Waypoints wp) => wp._flags;
 
     // Bitwise operators with Waypoints
-    public static Waypoints_v99 operator &(Waypoints_v99 left, Waypoints_v99 right) =>
+    public static Waypoints operator &(Waypoints left, Waypoints right) =>
         new(left._flags & right._flags);
 
-    public static Waypoints_v99 operator |(Waypoints_v99 left, Waypoints_v99 right) =>
+    public static Waypoints operator |(Waypoints left, Waypoints right) =>
         new(left._flags | right._flags);
 
-    public static Waypoints_v99 operator ~(Waypoints_v99 wp) =>
+    public static Waypoints operator ~(Waypoints wp) =>
         new(~wp._flags);
 
     // Bitwise operators with each act enum
-    public static Waypoints_v99 operator &(Waypoints_v99 left, ActIWaypoints right) =>
+    public static Waypoints operator &(Waypoints left, ActIWaypoints right) =>
         new(left._flags & (WaypointFlags)right);
 
-    public static Waypoints_v99 operator |(Waypoints_v99 left, ActIWaypoints right) =>
+    public static Waypoints operator |(Waypoints left, ActIWaypoints right) =>
         new(left._flags | (WaypointFlags)right);
 
-    public static Waypoints_v99 operator &(Waypoints_v99 left, ActIIWaypoints right) =>
+    public static Waypoints operator &(Waypoints left, ActIIWaypoints right) =>
         new(left._flags & (WaypointFlags)right);
 
-    public static Waypoints_v99 operator |(Waypoints_v99 left, ActIIWaypoints right) =>
+    public static Waypoints operator |(Waypoints left, ActIIWaypoints right) =>
         new(left._flags | (WaypointFlags)right);
 
-    public static Waypoints_v99 operator &(Waypoints_v99 left, ActIIIWaypoints right) =>
+    public static Waypoints operator &(Waypoints left, ActIIIWaypoints right) =>
         new(left._flags & (WaypointFlags)right);
 
-    public static Waypoints_v99 operator |(Waypoints_v99 left, ActIIIWaypoints right) =>
+    public static Waypoints operator |(Waypoints left, ActIIIWaypoints right) =>
         new(left._flags | (WaypointFlags)right);
 
-    public static Waypoints_v99 operator &(Waypoints_v99 left, ActIVWaypoints right) =>
+    public static Waypoints operator &(Waypoints left, ActIVWaypoints right) =>
         new(left._flags & (WaypointFlags)right);
 
-    public static Waypoints_v99 operator |(Waypoints_v99 left, ActIVWaypoints right) =>
+    public static Waypoints operator |(Waypoints left, ActIVWaypoints right) =>
         new(left._flags | (WaypointFlags)right);
 
-    public static Waypoints_v99 operator &(Waypoints_v99 left, ActVWaypoints right) =>
+    public static Waypoints operator &(Waypoints left, ActVWaypoints right) =>
         new(left._flags & (WaypointFlags)right);
 
-    public static Waypoints_v99 operator |(Waypoints_v99 left, ActVWaypoints right) =>
+    public static Waypoints operator |(Waypoints left, ActVWaypoints right) =>
         new(left._flags | (WaypointFlags)right);
 
     public void Write(IBitWriter writer, int numBits)
@@ -249,7 +249,7 @@ public struct Waypoints_v99
         writer.WriteUInt16((ushort)_flags, numBits);
     }
 
-    public static Waypoints_v99 Read(IBitReader reader, int numBits)
+    public static Waypoints Read(IBitReader reader, int numBits)
     {
         ushort bits = reader.ReadUInt16(numBits);
         return new(bits);

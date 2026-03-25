@@ -1,5 +1,4 @@
-﻿using DiabloIISaveLib;
-using DiabloIISaveLib.Data;
+﻿using DiabloIISaveLib.Types;
 using DiabloIISaveLib.Versions;
 using Serilog;
 using Xunit.Abstractions;
@@ -31,13 +30,13 @@ namespace UnitTests
 
 			try
 			{
-				var stash = new AtmaStash_v99(three_item_stash);
+				var stash = new AtmaStash(three_item_stash);
 				Assert.NotNull(stash);
 				Assert.Equal((uint)3687750839, stash.checkSum);
 				Assert.Equal(3, stash.item_count);
 
 				stash.Write(temp_path);
-				var tempstash = new AtmaStash_v99(temp_path);
+				var tempstash = new AtmaStash(temp_path);
 				Assert.NotNull(tempstash);
 				Assert.Equal((uint)3687750839, stash.checkSum);
 				Assert.Equal(3, tempstash.item_count);
@@ -59,29 +58,29 @@ namespace UnitTests
 
 			try
 			{
-				var stash = new AtmaStash_v99(three_armors_stash);
+				var stash = new AtmaStash(three_armors_stash);
 				Assert.NotNull(stash);
 				Assert.Equal((uint)1993806350, stash.checkSum);
 				Assert.Equal(3, stash.item_count);
 
-				Item_v99 second_item = stash.item_list.items[1];
+				Item second_item = stash.item_list.items[1];
 				Assert.Equal(61, second_item.current_durability);
 				Assert.Equal(61, ItemHelpers.GetTrueMaxDurability(second_item));
 				Assert.Equal(391, ItemHelpers.GetTrueDefenseRating(second_item));
 
-				Item_v99 first_item = stash.item_list.items[0];
+				Item first_item = stash.item_list.items[0];
 				Assert.Equal(44, first_item.current_durability);
 				Assert.Equal(100, ItemHelpers.GetTrueMaxDurability(first_item));
 				Assert.Equal(267, ItemHelpers.GetTrueDefenseRating(first_item));
 
-				Item_v99 third_item = stash.item_list.items[2];
+				Item third_item = stash.item_list.items[2];
 				Assert.Equal(16, third_item.current_durability);
 				Assert.Equal(24, ItemHelpers.GetTrueMaxDurability(third_item));
 				Assert.Equal(53, ItemHelpers.GetTrueDefenseRating(third_item));
 
 				stash.Write(temp_path);
 				Assert.True(AreEqual(three_armors_stash, temp_path));
-				var tempstash = new AtmaStash_v99(temp_path);
+				var tempstash = new AtmaStash(temp_path);
 				Assert.NotNull(tempstash);
 				Assert.Equal((uint)1993806350, stash.checkSum);
 				Assert.Equal(3, tempstash.item_count);
@@ -102,14 +101,14 @@ namespace UnitTests
 
 			try
 			{
-				var stash = new AtmaStash_v99(empty_stash);
+				var stash = new AtmaStash(empty_stash);
 				Assert.NotNull(stash);
 				Assert.Equal((uint)120928, stash.checkSum);
 				Assert.Equal(0, stash.item_count);
 
 				stash.Write(temp_path);
 				Assert.True(AreEqual(empty_stash, temp_path));
-				var tempstash = new AtmaStash_v99(temp_path);
+				var tempstash = new AtmaStash(temp_path);
 				Assert.Equal((uint)120928, stash.checkSum);
 				Assert.NotNull(tempstash);
 				Assert.Equal(0, tempstash.item_count);
@@ -130,14 +129,14 @@ namespace UnitTests
 
 			try
 			{
-				var stash = new AtmaStash_v99(big_stash);
+				var stash = new AtmaStash(big_stash);
 				
 				Assert.NotNull(stash);
 				Assert.Equal(2788771406, stash.checkSum);
 				Assert.Equal(957, stash.item_count);
 
 				stash.Write(temp_path);
-				var tempstash = new AtmaStash_v99(temp_path);
+				var tempstash = new AtmaStash(temp_path);
 				Assert.NotNull(tempstash);
 				Assert.Equal(2788771406, tempstash.checkSum);
 				Assert.Equal(957, tempstash.item_count);
@@ -158,14 +157,14 @@ namespace UnitTests
 
 			try
 			{
-				var character = new Character_v99(character_path);
+				var character = new Character(character_path);
 				Assert.NotNull(character);
 				Assert.Equal((uint)120928, character.header.checksum);
 				//Assert.Equal(0, stash.item_count);
 
 				//stash.Write(temp_path);
 				//Assert.True(AreEqual(empty_stash, temp_path));
-				//var tempstash = new AtmaStash_v99(temp_path);
+				//var tempstash = new AtmaStash(temp_path);
 				//Assert.Equal((uint)120928, stash.checkSum);
 				//Assert.NotNull(tempstash);
 				//Assert.Equal(0, tempstash.item_count);

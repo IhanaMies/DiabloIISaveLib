@@ -1,15 +1,15 @@
-﻿using DiabloIISaveLib.Data;
+﻿using DiabloIISaveLib.Types;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using static DiabloIISaveLib.Data.Item_v99;
+using static DiabloIISaveLib.Types.Item;
 
 namespace DiabloIISaveLib.Versions
 {
 	public static class ItemHelpers
 	{
-		public static int? GetTrueDefenseRating(Item_v99 item)
+		public static int? GetTrueDefenseRating(Item item)
 		{
 			if (item.defense_rating == null)
 				return null;
@@ -28,7 +28,7 @@ namespace DiabloIISaveLib.Versions
 			return defense;
 		}
 
-		public static int? GetTrueMaxDurability(Item_v99 item)
+		public static int? GetTrueMaxDurability(Item item)
 		{
 			if (item.max_durability == null)
 				return null;

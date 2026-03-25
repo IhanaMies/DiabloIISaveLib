@@ -1,9 +1,9 @@
 ﻿using DiabloIISaveLib.IO;
 using System.Diagnostics.CodeAnalysis;
 
-namespace DiabloIISaveLib.Data;
+namespace DiabloIISaveLib.Types;
 
-public class Appearances_v99
+public class Appearances
 {
     private readonly Appearance[] _parts = new Appearance[16];
 
@@ -30,9 +30,9 @@ public class Appearances_v99
             _parts[i].Write(writer);
     }
 
-    public static Appearances_v99 Read(IBitReader reader)
+    public static Appearances Read(IBitReader reader)
     {
-        var appearances = new Appearances_v99();
+        var appearances = new Appearances();
         var parts = appearances._parts;
 
         for (int i = 0; i < parts.Length; i++)
