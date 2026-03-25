@@ -1,8 +1,8 @@
 ﻿using DiabloIISaveLib.IO;
 using System.Text;
-using static DiabloIISaveLib.Versions.v99.Item_v99;
+using static DiabloIISaveLib.Data.Item_v99;
 
-namespace DiabloIISaveLib.Versions.v99;
+namespace DiabloIISaveLib.Data;
 
 // 4+1+1+2+4
 public class PreviewItem_v99

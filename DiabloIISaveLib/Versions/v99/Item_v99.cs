@@ -1,5 +1,4 @@
-﻿using DiabloIISaveLib.Constants.v99;
-using DiabloIISaveLib.Huffman;
+﻿using DiabloIISaveLib.Huffman;
 using DiabloIISaveLib.IO;
 using Serilog;
 using System;
@@ -8,7 +7,7 @@ using System.Diagnostics;
 using System.Reflection.PortableExecutable;
 using System.Text;
 
-namespace DiabloIISaveLib.Versions.v99
+namespace DiabloIISaveLib.Data
 {
 	public class Ear_v99 : Item_v99
 	{
@@ -122,7 +121,7 @@ namespace DiabloIISaveLib.Versions.v99
 
 		public static string GetCategory(string val)
 		{
-			if (Data.itemTypes.TryGetValue(val, out var category))
+			if (Constants.itemTypes.TryGetValue(val, out var category))
 			{
 				_ = 3;
 			}
@@ -179,7 +178,7 @@ namespace DiabloIISaveLib.Versions.v99
 
 				for (int i = 0; i < 4; i++)
 				{
-					var (bits, length) = Data.item_code_tree!.GetEncodedBits((char)itemCode[i]);
+					var (bits, length) = Constants.item_code_tree!.GetEncodedBits((char)itemCode[i]);
 					writer.WriteBits(bits, length);
 				}
 				Log.Verbose($"Write code. 32 bits. Position: {writer.Position}");
@@ -187,7 +186,7 @@ namespace DiabloIISaveLib.Versions.v99
 				int num_socket_bits = compact_item ? 1 : 3;
 				if (code == "ques")
 				{
-					var questDiffStat = Data.item_stat_costs["questitemdifficulty"];
+					var questDiffStat = Constants.item_stat_costs["questitemdifficulty"];
 					writer.WriteInt32((quest_difficulty + questDiffStat?.save_add ?? 0) >> questDiffStat.val_shift ?? 0, questDiffStat?.save_bits ?? 0);
 					Log.Verbose($"Write quest difficulty. 32 bits. Position: {writer.Position}");
 					num_socket_bits = 1;
@@ -316,7 +315,7 @@ namespace DiabloIISaveLib.Versions.v99
 
 			if (type == EItemType.Armor)
 			{
-				var armorclass_data = Data.item_stat_costs["armorclass"];
+				var armorclass_data = Constants.item_stat_costs["armorclass"];
 				writer.WriteUInt16(
 					(ushort)(defense_rating! + armorclass_data.save_add!.Value),
 					(ushort)armorclass_data.save_bits!.Value
@@ -325,8 +324,8 @@ namespace DiabloIISaveLib.Versions.v99
 			}
 			if (type == EItemType.Armor || type == EItemType.Weapon)
 			{
-				var maxdurability_data = Data.item_stat_costs["maxdurability"];
-				var durability_data = Data.item_stat_costs["durability"];
+				var maxdurability_data = Constants.item_stat_costs["maxdurability"];
+				var durability_data = Constants.item_stat_costs["durability"];
 
 				writer.WriteUInt16(
 					max_durability!.Value + maxdurability_data.save_add!.Value,
@@ -352,7 +351,7 @@ namespace DiabloIISaveLib.Versions.v99
 
 			if ((flags & ItemFlags.Socketed) != 0)
 			{
-				int bits = Data.item_stat_costs["item_numsockets"].save_bits ?? 0;
+				int bits = Constants.item_stat_costs["item_numsockets"].save_bits ?? 0;
 				writer.WriteByte(total_nr_of_sockets, bits);
 				Log.Verbose($"Write total_nr_of_sockets. {bits} bits. Position: {writer.Position}");
 			}
@@ -521,7 +520,7 @@ namespace DiabloIISaveLib.Versions.v99
 
 				if (item.code == "ques")
 				{
-					var a = Data.item_stat_costs["questitemdifficulty"];
+					var a = Constants.item_stat_costs["questitemdifficulty"];
 					item.quest_difficulty = (byte)((reader.ReadInt32(a.save_bits ?? 0) - a.save_add ?? 0) << a.val_shift ?? 0);
 					Log.Verbose($"Read quest_difficulty. {a.save_bits ?? 0} bits. Position: {reader.Position}");
 
@@ -659,44 +658,44 @@ namespace DiabloIISaveLib.Versions.v99
 			//}
 			string code = item.code!;
 
-			if (Data.armors.ContainsKey(code))
+			if (Constants.armors.ContainsKey(code))
 			{
 				//is amror
 				item.type = EItemType.Armor;
 			}
-			else if (Data.weapons.ContainsKey(code))
+			else if (Constants.weapons.ContainsKey(code))
 			{
 				//is wepun
 				item.type = EItemType.Weapon;
 			}
-			else if (Data.miscs.ContainsKey(code))
+			else if (Constants.miscs.ContainsKey(code))
 			{
 				//is else
 				item.type = EItemType.Other;
 			}
 
-			item.stackable = Data.IsStackable(item.code!);
+			item.stackable = Constants.IsStackable(item.code!);
 
 			if (item.type == EItemType.Armor)
 			{
-				int bits_to_read = Data.item_stat_costs["armorclass"].save_bits!.Value;
+				int bits_to_read = Constants.item_stat_costs["armorclass"].save_bits!.Value;
 				item.defense_rating = reader.ReadUInt16(bits_to_read)
-				- Data.item_stat_costs["armorclass"].save_add!.Value;
+				- Constants.item_stat_costs["armorclass"].save_add!.Value;
 				Log.Verbose($"Read defense_rating. {bits_to_read} bits. Position: {reader.Position}");
 			}
 
 			if (item.type == EItemType.Armor || item.type == EItemType.Weapon)
 			{
-				int bits_to_read = Data.item_stat_costs["maxdurability"].save_bits!.Value;
+				int bits_to_read = Constants.item_stat_costs["maxdurability"].save_bits!.Value;
 				item.max_durability = reader.ReadUInt16(bits_to_read)
-				- Data.item_stat_costs["maxdurability"].save_add!.Value;
+				- Constants.item_stat_costs["maxdurability"].save_add!.Value;
 				Log.Verbose($"Read max_durability. {bits_to_read} bits. Position: {reader.Position}");
 
 				if (item.max_durability > 0)
 				{
-					bits_to_read = Data.item_stat_costs["durability"].save_bits!.Value;
+					bits_to_read = Constants.item_stat_costs["durability"].save_bits!.Value;
 					item.current_durability = reader.ReadUInt16(bits_to_read)
-					- Data.item_stat_costs["durability"].save_add!.Value;
+					- Constants.item_stat_costs["durability"].save_add!.Value;
 					Log.Verbose($"Read durability. {bits_to_read} bits. Position: {reader.Position}");
 				}
 			}
@@ -709,7 +708,7 @@ namespace DiabloIISaveLib.Versions.v99
 
 			if ((item.flags & ItemFlags.Socketed) != 0)
 			{
-				int bits_to_read = Data.item_stat_costs["item_numsockets"].save_bits ?? 0;
+				int bits_to_read = Constants.item_stat_costs["item_numsockets"].save_bits ?? 0;
 				item.total_nr_of_sockets = reader.ReadByte(bits_to_read);
 				Log.Verbose($"Read total_nr_of_sockets. {bits_to_read} bits. Position: {reader.Position}");
 			}
@@ -915,7 +914,7 @@ namespace DiabloIISaveLib.Versions.v99
 			public static ItemModifier Read(IBitReader reader, ushort id)
 			{
 				var itemStat = new ItemModifier();
-				var property = Data.item_stat_costs.Values.FirstOrDefault(x => (ushort)x.id! == id);
+				var property = Constants.item_stat_costs.Values.FirstOrDefault(x => (ushort)x.id! == id);
 				if (property == null)
 				{
 					throw new Exception($"No ItemStatCost record found for id: {id} at bit {reader.Position - 9}");
@@ -972,7 +971,7 @@ namespace DiabloIISaveLib.Versions.v99
 
 			public void Write(IBitWriter writer)
 			{
-				var property = Data.item_stat_costs.Values.FirstOrDefault(x => (ushort)x.id! == id);
+				var property = Constants.item_stat_costs.Values.FirstOrDefault(x => (ushort)x.id! == id);
 
 				if (property == null)
 				{

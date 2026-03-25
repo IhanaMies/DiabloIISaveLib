@@ -1,9 +1,9 @@
-﻿using DiabloIISaveLib.Versions.v99;
+﻿using DiabloIISaveLib.Data;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using static DiabloIISaveLib.Versions.v99.Item_v99;
+using static DiabloIISaveLib.Data.Item_v99;
 
 namespace DiabloIISaveLib.Versions
 {

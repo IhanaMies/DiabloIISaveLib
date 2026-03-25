@@ -4,7 +4,7 @@ using System.Buffers.Binary;
 using System.Reflection.PortableExecutable;
 using System.Text;
 
-namespace DiabloIISaveLib.Versions.v99
+namespace DiabloIISaveLib.Data
 {
 	public class AtmaStash_v99
 	{

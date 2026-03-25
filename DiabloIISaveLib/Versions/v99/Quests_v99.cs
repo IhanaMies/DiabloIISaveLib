@@ -1,7 +1,7 @@
 ﻿using DiabloIISaveLib.IO;
 using System.Diagnostics;
 
-namespace DiabloIISaveLib.Versions.v99;
+namespace DiabloIISaveLib.Data;
 
 public sealed class QuestsSection_v99 : IDisposable
 {

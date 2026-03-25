@@ -6,9 +6,9 @@ using DiabloIISaveLib.Huffman;
 using Serilog;
 using static DiabloIISaveLib.Helpers;
 
-namespace DiabloIISaveLib.Constants.v99
+namespace DiabloIISaveLib
 {
-	public static class Data
+	public static class Constants
 	{
 		public enum EDataLoadingStatus
 		{
@@ -88,7 +88,7 @@ namespace DiabloIISaveLib.Constants.v99
 			set;
 		} = new();
 
-		static Data()
+		static Constants()
 		{
 			Log.Logger = new LoggerConfiguration()
 				.MinimumLevel.Verbose()

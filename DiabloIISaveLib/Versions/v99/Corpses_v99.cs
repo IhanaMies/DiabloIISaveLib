@@ -1,6 +1,6 @@
 ﻿using DiabloIISaveLib.IO;
 
-namespace DiabloIISaveLib.Versions.v99;
+namespace DiabloIISaveLib.Data;
 
 public sealed class CorpseList_v99 : IDisposable
 {

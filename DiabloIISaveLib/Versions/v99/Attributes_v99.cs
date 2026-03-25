@@ -1,7 +1,6 @@
-﻿using DiabloIISaveLib.Constants.v99;
-using DiabloIISaveLib.IO;
+﻿using DiabloIISaveLib.IO;
 
-namespace DiabloIISaveLib.Versions.v99;
+namespace DiabloIISaveLib.Data;
 
 public record Stat(int Layer, long Value);
 
@@ -20,7 +19,7 @@ public class Attributes_v99
         ushort id = reader.ReadUInt16(9);
         while (id != 0x1ff)
         {
-            var property = Data.item_stat_costs.Values.FirstOrDefault(x => x.id == id);
+            var property = Constants.item_stat_costs.Values.FirstOrDefault(x => x.id == id);
             if (property == null)
             {
                 throw new Exception($"No ItemStatCost record found for id: {id} at bit {reader.Position - 9}");
@@ -60,7 +59,7 @@ public class Attributes_v99
         writer.WriteUInt16(header ?? 0x6667);
         foreach (var entry in stats)
         {
-            var property = Data.item_stat_costs.Values.FirstOrDefault(x => x.id == entry.Key);
+            var property = Constants.item_stat_costs.Values.FirstOrDefault(x => x.id == entry.Key);
             if (property == null)
             {
                 throw new Exception($"No ItemStatCost record found for id: {entry.Key}");

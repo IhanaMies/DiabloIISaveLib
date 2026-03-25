@@ -1,5 +1,4 @@
-﻿using DiabloIISaveLib.Constants.v99;
-using Xunit.Sdk;
+﻿using Xunit.Sdk;
 using static DiabloIISaveLib.Helpers;
 
 namespace UnitTests

@@ -6,7 +6,7 @@ using System.Collections.Generic;
 using System.Reflection.PortableExecutable;
 using System.Text;
 
-namespace DiabloIISaveLib.Versions.v99
+namespace DiabloIISaveLib.Data
 {
 	public class Header_v99
 	{

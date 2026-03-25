@@ -1,6 +1,6 @@
 ﻿using DiabloIISaveLib.IO;
 
-namespace DiabloIISaveLib.Versions.v99;
+namespace DiabloIISaveLib.Data;
 
 public sealed class NPCDialogSection_v99
 {

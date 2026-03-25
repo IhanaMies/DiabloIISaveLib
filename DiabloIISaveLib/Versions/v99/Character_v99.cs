@@ -10,7 +10,7 @@ using System.Text;
 using System.Text.Json.Serialization;
 using System.Xml.Linq;
 
-namespace DiabloIISaveLib.Versions.v99
+namespace DiabloIISaveLib.Data
 {
 
 	[Flags]

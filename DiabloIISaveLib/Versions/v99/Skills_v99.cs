@@ -1,7 +1,7 @@
 ﻿using DiabloIISaveLib.IO;
 using Serilog;
 
-namespace DiabloIISaveLib.Versions.v99;
+namespace DiabloIISaveLib.Data;
 
 public class ClassSkills_v99
 {

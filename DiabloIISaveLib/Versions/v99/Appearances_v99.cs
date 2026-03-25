@@ -1,7 +1,7 @@
 ﻿using DiabloIISaveLib.IO;
 using System.Diagnostics.CodeAnalysis;
 
-namespace DiabloIISaveLib.Versions.v99;
+namespace DiabloIISaveLib.Data;
 
 public class Appearances_v99
 {

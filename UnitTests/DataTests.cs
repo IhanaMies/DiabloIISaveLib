@@ -1,6 +1,6 @@
-﻿using DiabloIISaveLib.Constants.v99;
+﻿using DiabloIISaveLib;
+using DiabloIISaveLib.Data;
 using DiabloIISaveLib.Versions;
-using DiabloIISaveLib.Versions.v99;
 using Serilog;
 using Xunit.Abstractions;
 using Xunit.Sdk;
@@ -20,7 +20,7 @@ namespace UnitTests
 				.WriteTo.Async(a => a.File("log.txt"))
 				.CreateLogger();
 
-			Data.LoadData("..//..//..//..//DiabloIISaveLib");
+			Constants.LoadData("..//..//..//..//DiabloIISaveLib");
 		}
 
 		[Fact]
